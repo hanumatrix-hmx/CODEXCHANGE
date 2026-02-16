@@ -1,0 +1,31 @@
+{
+    "name": "@codexchange/db",
+    "version": "0.1.0",
+    "private": true,
+    "main": "./src/index.ts",
+    "types": "./src/index.ts",
+    "scripts": {
+        "db:generate": "drizzle-kit generate:pg",
+        "db:push": "drizzle-kit push:pg",
+        "db:studio": "drizzle-kit studio",
+        "seed": "tsx src/seed.ts",
+        "db:seed": "tsx src/seed-fixed.ts",
+        "db:migrate": "tsx src/migrate.ts",
+        "db:triggers": "tsx src/apply-triggers.ts",
+        "db:promote": "tsx src/promote.ts",
+        "make-admin": "tsx src/make-admin.ts",
+        "lint": "eslint \"src/**/*.ts\" --max-warnings 0"
+    },
+    "dependencies": {
+        "drizzle-orm": "^0.29.4",
+        "@supabase/supabase-js": "^2.39.7",
+        "postgres": "^3.4.3"
+    },
+    "devDependencies": {
+        "drizzle-kit": "^0.20.14",
+        "tsx": "^4.7.1",
+        "dotenv": "^16.4.5",
+        "eslint": "^8.57.0",
+        "@codexchange/eslint-config": "workspace:*"
+    }
+}

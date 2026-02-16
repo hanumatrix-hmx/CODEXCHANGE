@@ -1,0 +1,22 @@
+{
+    "name": "@codexchange/payment",
+    "version": "0.1.0",
+    "private": true,
+    "type": "module",
+    "exports": {
+        ".": "./src/index.ts"
+    },
+    "scripts": {
+        "lint": "eslint . --max-warnings 0",
+        "type-check": "tsc --noEmit"
+    },
+    "dependencies": {
+        "cashfree-pg": "^5.1.0"
+    },
+    "devDependencies": {
+        "@codexchange/eslint-config": "workspace:*",
+        "@codexchange/typescript-config": "workspace:*",
+        "@types/node": "^20.0.0",
+        "typescript": "^5.3.3"
+    }
+}
