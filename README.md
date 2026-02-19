@@ -86,18 +86,57 @@ pnpm typecheck    # Type check all code
 pnpm format       # Format code with Prettier
 ```
 
+## 👑 Administration
+
+To grant admin privileges to a user:
+
+1. Navigate to the database package:
+   ```bash
+   cd packages/db
+   ```
+2. Run the make-admin script with the user's email:
+   ```bash
+   pnpm run make-admin <user-email>
+   ```
+
+## ✨ Features
+
+- **Asset Submission**: Detailed forms with validation.
+- **Image Gallery**: 
+  - Multiple image uploads for assets.
+  - **Image Zoom**: High-quality zoom for cover and gallery images using `react-medium-image-zoom`.
+- **License Customization**: Builders can define specific features for Usage and Source licenses (e.g., "Unlimited users", "Deployment support").
+- **Admin Dashboard**: Manage users and assets.
+
 ## 🗄️ Database
 
 We use Drizzle ORM with Supabase Postgres. Schema is defined in `packages/db/src/schema.ts`.
 
-**Core tables:**
-- `profiles` - User profiles
-- `categories` - Asset categories
-- `assets` - Listed AI tools
-- `licenses` - Purchased licenses
-- `transactions` - Payment records
-- `surveys` - Pricing surveys
-- `reviews` - Asset reviews
+**Full table list (17 tables):**
+- `profiles` - User profiles (extends Supabase auth)
+- `builder_profiles` - Builder-specific compliance and store data
+- `categories` - Asset categories (hierarchical)
+- `assets` - Listed AI tools/software
+- `listing_images` - Gallery and cover images for assets
+- `listing_versions` - Semver version tracking for assets
+- `tags` - Global tags
+- `listing_tags` - Many-to-many link between assets and tags
+- `moderation_queue` - Quality gate for new/updated assets
+- `moderation_log` - History of moderation actions
+- `licenses` - Active/expired licenses for buyers
+- `transactions` - Payment gateway transaction records
+- `surveys` - Pricing surveys (Van Westendorp model)
+- `survey_responses` - Individual user feedback on pricing
+- `payouts` - Builder earnings and transfers
+- `reviews` - Asset ratings and feedback
+- `audit_logs` - System-wide activity tracking
+
+## 📦 Storage
+
+We use **Supabase Storage** (and eventually AWS S3) for asset files.
+
+- **Buckets**:
+  - `listing-image`: Publicly accessible bucket for asset cover photos and gallery images.
 
 **Migration commands:**
 ```bash
