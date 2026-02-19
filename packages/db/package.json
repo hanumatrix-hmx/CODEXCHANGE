@@ -17,15 +17,15 @@
         "lint": "eslint \"src/**/*.ts\" --max-warnings 0"
     },
     "dependencies": {
-        "drizzle-orm": "^0.29.4",
         "@supabase/supabase-js": "^2.39.7",
+        "drizzle-orm": "^0.29.4",
         "postgres": "^3.4.3"
     },
     "devDependencies": {
-        "drizzle-kit": "^0.20.14",
-        "tsx": "^4.7.1",
+        "@codexchange/eslint-config": "workspace:*",
         "dotenv": "^16.4.5",
+        "drizzle-kit": "^0.20.14",
         "eslint": "^8.57.0",
-        "@codexchange/eslint-config": "workspace:*"
+        "tsx": "^4.7.1"
     }
 }

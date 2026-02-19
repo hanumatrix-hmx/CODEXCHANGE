@@ -1,6 +1,6 @@
 "use server";
 
-import { db, assets } from "@codexchange/db";
+import { db, assets, listingImages } from "@codexchange/db";
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -16,9 +16,31 @@ const assetSchema = z.object({
     techStack: z.string().optional(),
     demoUrl: z.string().url("Invalid URL").optional().or(z.literal("")),
     githubUrl: z.string().url("Invalid URL").optional().or(z.literal("")),
+    licenseFeatures: z.string().transform((str, ctx) => {
+        try {
+            return JSON.parse(str);
+        } catch (e) {
+            ctx.addIssue({ code: 'custom', message: 'Invalid JSON for license features' });
+            return z.NEVER;
+        }
+    }).optional(),
 });
 
-export async function submitAsset(formData: FormData) {
+export type FormState = {
+    error?: {
+        name?: string[];
+        slug?: string[];
+        categoryId?: string[];
+        description?: string[];
+        usageLicensePrice?: string[];
+        demoUrl?: string[];
+        githubUrl?: string[];
+        _form?: string[];
+    };
+    message?: string | null;
+};
+
+export async function submitAsset(_prevState: any, formData: FormData): Promise<FormState> {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
@@ -36,6 +58,7 @@ export async function submitAsset(formData: FormData) {
         techStack: formData.get("techStack") as string,
         demoUrl: formData.get("demoUrl") as string,
         githubUrl: formData.get("githubUrl") as string,
+        licenseFeatures: formData.get("licenseFeatures") as string,
     };
 
     const validated = assetSchema.safeParse(rawData);
@@ -48,13 +71,77 @@ export async function submitAsset(formData: FormData) {
 
     const { techStack, ...rest } = validated.data;
 
+    // Handle image uploads
+    const coverImageFile = formData.get("coverImage") as File;
+    const galleryImageFiles = formData.getAll("galleryImages") as File[];
+
+    const validGalleryImages = galleryImageFiles.filter(file => file.size > 0 && file.type.startsWith("image/"));
+
+    const uploadedImageUrls: { url: string, sortOrder: number }[] = [];
+
     try {
-        await db.insert(assets).values({
+        // Upload Cover Image
+        if (coverImageFile && coverImageFile.size > 0 && coverImageFile.type.startsWith("image/")) {
+            const fileExt = coverImageFile.name.split(".").pop();
+            const fileName = `${user.id}/${rest.slug}/cover-${Date.now()}.${fileExt}`;
+
+            const { error: uploadError } = await supabase.storage
+                .from("listing-image")
+                .upload(fileName, coverImageFile);
+
+            if (!uploadError) {
+                const { data: { publicUrl } } = supabase.storage
+                    .from("listing-image")
+                    .getPublicUrl(fileName);
+
+                // Cover image is always sortOrder 0
+                uploadedImageUrls.push({ url: publicUrl, sortOrder: 0 });
+            } else {
+                console.error("Error uploading cover image:", uploadError);
+            }
+        }
+
+        // Upload Gallery Images
+        for (let i = 0; i < validGalleryImages.length; i++) {
+            const file = validGalleryImages[i];
+            const fileExt = file.name.split('.').pop();
+            const fileName = `${user.id}/${rest.slug}/gallery-${Date.now()}-${i}.${fileExt}`;
+
+            const { error: uploadError } = await supabase.storage
+                .from("listing-image")
+                .upload(fileName, file);
+
+            if (uploadError) {
+                console.error("Error uploading gallery image:", uploadError);
+                continue;
+            }
+
+            const { data: { publicUrl } } = supabase.storage
+                .from("listing-image")
+                .getPublicUrl(fileName);
+
+            // Gallery images start from sortOrder 1
+            uploadedImageUrls.push({ url: publicUrl, sortOrder: i + 1 });
+        }
+
+        const [newAsset] = await db.insert(assets).values({
             ...rest,
             builderId: user.id,
             techStack: techStack ? techStack.split(",").map(s => s.trim()) : [],
             status: "pending_review",
-        });
+            // Use the cover image (sortOrder 0) as thumbnail if available, otherwise first gallery image
+            thumbnailUrl: uploadedImageUrls.length > 0 ? uploadedImageUrls.sort((a, b) => a.sortOrder - b.sortOrder)[0].url : null,
+        }).returning({ id: assets.id });
+
+        if (uploadedImageUrls.length > 0) {
+            await db.insert(listingImages).values(
+                uploadedImageUrls.map(img => ({
+                    assetId: newAsset.id,
+                    url: img.url,
+                    sortOrder: img.sortOrder,
+                }))
+            );
+        }
     } catch (error: any) {
         console.error("Failed to submit asset:", error);
         if (error.code === "23505") { // Unique violation

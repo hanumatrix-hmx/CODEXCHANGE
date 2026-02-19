@@ -4,6 +4,7 @@ import { api } from "@/utils/trpc/client";
 import { notFound, useParams } from "next/navigation";
 import { ShieldCheck, ExternalLink, Github, Globe, ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import { ZoomImage } from "@/components/ui/zoom-image";
 import { QualityBadge } from "@/components/quality-badge";
 import { PricingCard } from "@/components/pricing-card";
 import { AssetCard } from "@/components/asset-card";
@@ -50,14 +51,14 @@ export default function AssetPage() {
 
     const imageUrl = asset.thumbnailUrl || `https://placehold.co/1200x800?text=${encodeURIComponent(asset.name)}`;
 
-    const usageLicenseFeatures = [
+    const usageLicenseFeatures = asset.licenseFeatures?.usage || [
         "Deploy to production",
         "Unlimited end users",
         "Technical support",
         "Updates for 1 year",
     ];
 
-    const sourceLicenseFeatures = [
+    const sourceLicenseFeatures = asset.licenseFeatures?.source || [
         "Full source code access",
         "Modify and customize",
         "White-label rights",
@@ -86,7 +87,7 @@ export default function AssetPage() {
                     {/* Left: Image - 2 columns */}
                     <div className="lg:col-span-2">
                         <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-                            <img
+                            <ZoomImage
                                 src={imageUrl}
                                 alt={asset.name}
                                 className="h-[500px] w-full object-cover"
@@ -221,6 +222,31 @@ export default function AssetPage() {
                         </div>
                     </div>
                 </div>
+
+                {/* Gallery Section */}
+                {asset.listingImages && asset.listingImages.length > 0 && (
+                    <div className="mb-12">
+                        <h2 className="mb-6 text-2xl font-bold text-gray-900">Gallery</h2>
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                            {asset.listingImages
+                                .filter((img) => img.sortOrder > 0) // Filter out cover image (sortOrder 0) if desired, or show all
+                                .map((image) => (
+                                    <div
+                                        key={image.id}
+                                        className="group relative cursor-pointer overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm transition hover:shadow-md"
+                                    >
+                                        <div className="aspect-video w-full overflow-hidden bg-gray-100">
+                                            <ZoomImage
+                                                src={image.url}
+                                                alt={`Gallery image`}
+                                                className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+                                            />
+                                        </div>
+                                    </div>
+                                ))}
+                        </div>
+                    </div>
+                )}
 
                 {/* Long Description */}
                 {asset.longDescription && (

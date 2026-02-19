@@ -11,6 +11,9 @@ export async function getAssetBySlug(slug: string) {
         with: {
             category: true,
             builder: true,
+            listingImages: {
+                orderBy: (images, { asc }) => [asc(images.sortOrder)],
+            },
             reviews: {
                 limit: 10,
                 orderBy: [desc(reviewsTable.createdAt)],

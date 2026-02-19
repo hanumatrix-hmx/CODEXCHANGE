@@ -7,6 +7,9 @@ export const licenseTypeEnum = pgEnum("license_type", ["usage", "source"]);
 export const assetStatusEnum = pgEnum("asset_status", ["draft", "pending_review", "approved", "rejected"]);
 export const transactionStatusEnum = pgEnum("transaction_status", ["pending", "completed", "failed", "refunded"]);
 export const qualityTierEnum = pgEnum("quality_tier", ["bronze", "silver", "gold"]);
+export const builderVerificationStatusEnum = pgEnum("builder_verification_status", ["pending", "verified", "rejected"]);
+export const moderationStatusEnum = pgEnum("moderation_status", ["pending", "in_review", "approved", "rejected", "appealed"]);
+
 
 // Profiles (extends Supabase auth.users)
 export const profiles = pgTable("profiles", {
@@ -21,6 +24,24 @@ export const profiles = pgTable("profiles", {
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
+
+// Builder Profiles
+export const builderProfiles = pgTable("builder_profiles", {
+    id: uuid("id").primaryKey().references(() => profiles.id, { onDelete: "cascade" }),
+    storeName: text("store_name").notNull(),
+    storeSlug: text("store_slug").notNull().unique(),
+
+    // Indian Compliance
+    gstin: text("gstin").notNull(),
+    pan: text("pan").notNull(),
+    bankAccountId: text("bank_account_id").notNull(),
+
+    verificationStatus: builderVerificationStatusEnum("verification_status").default("pending").notNull(),
+
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 
 // Categories
 export const categories = pgTable("categories", {
@@ -60,6 +81,9 @@ export const assets = pgTable("assets", {
     demoUrl: text("demo_url"),
     githubUrl: text("github_url"),
 
+    // License features
+    licenseFeatures: jsonb("license_features").$type<{ usage: string[]; source: string[] }>(),
+
     // Storage
     thumbnailUrl: text("thumbnail_url"),
     fileStoragePath: text("file_storage_path"), // S3 path
@@ -71,6 +95,61 @@ export const assets = pgTable("assets", {
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
+
+// Listing Images
+export const listingImages = pgTable("listing_images", {
+    id: uuid("id").primaryKey().defaultRandom(),
+    assetId: uuid("asset_id").notNull().references(() => assets.id, { onDelete: "cascade" }),
+    url: text("url").notNull(),
+    sortOrder: integer("sort_order").default(0).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Listing Versions
+export const listingVersions = pgTable("listing_versions", {
+    id: uuid("id").primaryKey().defaultRandom(),
+    assetId: uuid("asset_id").notNull().references(() => assets.id, { onDelete: "cascade" }),
+    version: text("version").notNull(), // Semver
+    changelog: text("changelog"),
+    packageUrl: text("package_url").notNull(),
+    checksum: text("checksum"), // SHA-256
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Tags
+export const tags = pgTable("tags", {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull().unique(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Listing Tags
+export const listingTags = pgTable("listing_tags", {
+    assetId: uuid("asset_id").notNull().references(() => assets.id, { onDelete: "cascade" }),
+    tagId: uuid("tag_id").notNull().references(() => tags.id, { onDelete: "cascade" }),
+}, (t) => ({
+    pk: [t.assetId, t.tagId],
+}));
+
+// Moderation
+export const moderationQueue = pgTable("moderation_queue", {
+    id: uuid("id").primaryKey().defaultRandom(),
+    assetId: uuid("asset_id").notNull().references(() => assets.id, { onDelete: "cascade" }),
+    status: moderationStatusEnum("status").default("pending").notNull(),
+    assignedTo: uuid("assigned_to").references(() => profiles.id),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const moderationLog = pgTable("moderation_log", {
+    id: uuid("id").primaryKey().defaultRandom(),
+    queueId: uuid("queue_id").notNull().references(() => moderationQueue.id, { onDelete: "cascade" }),
+    moderatorId: uuid("moderator_id").notNull().references(() => profiles.id),
+    action: text("action").notNull(), // approve, reject, comment, assign
+    reason: text("reason"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 
 // Licenses
 export const licenses = pgTable("licenses", {
@@ -197,12 +276,17 @@ export const auditLogs = pgTable("audit_logs", {
 });
 
 // Relations (for Drizzle queries)
-export const profilesRelations = relations(profiles, ({ many }) => ({
+export const profilesRelations = relations(profiles, ({ one, many }) => ({
     assetsCreated: many(assets),
     licenses: many(licenses),
     transactions: many(transactions),
     reviews: many(reviews),
+    builderProfile: one(builderProfiles, {
+        fields: [profiles.id],
+        references: [builderProfiles.id],
+    }),
 }));
+
 
 export const assetsRelations = relations(assets, ({ one, many }) => ({
     builder: one(profiles, {
@@ -217,7 +301,15 @@ export const assetsRelations = relations(assets, ({ one, many }) => ({
     transactions: many(transactions),
     reviews: many(reviews),
     surveys: many(surveys),
+    listingImages: many(listingImages),
+    versions: many(listingVersions),
+    tags: many(listingTags),
+    moderationQueue: one(moderationQueue, {
+        fields: [assets.id],
+        references: [moderationQueue.assetId],
+    }),
 }));
+
 
 export const reviewsRelations = relations(reviews, ({ one }) => ({
     asset: one(assets, {
@@ -263,3 +355,63 @@ export const transactionsRelations = relations(transactions, ({ one }) => ({
         references: [profiles.id],
     }),
 }));
+
+export const builderProfilesRelations = relations(builderProfiles, ({ one }) => ({
+    profile: one(profiles, {
+        fields: [builderProfiles.id],
+        references: [profiles.id],
+    }),
+}));
+
+export const listingImagesRelations = relations(listingImages, ({ one }) => ({
+    asset: one(assets, {
+        fields: [listingImages.assetId],
+        references: [assets.id],
+    }),
+}));
+
+export const listingVersionsRelations = relations(listingVersions, ({ one }) => ({
+    asset: one(assets, {
+        fields: [listingVersions.assetId],
+        references: [assets.id],
+    }),
+}));
+
+export const tagsRelations = relations(tags, ({ many }) => ({
+    assets: many(listingTags),
+}));
+
+export const listingTagsRelations = relations(listingTags, ({ one }) => ({
+    asset: one(assets, {
+        fields: [listingTags.assetId],
+        references: [assets.id],
+    }),
+    tag: one(tags, {
+        fields: [listingTags.tagId],
+        references: [tags.id],
+    }),
+}));
+
+export const moderationQueueRelations = relations(moderationQueue, ({ one, many }) => ({
+    asset: one(assets, {
+        fields: [moderationQueue.assetId],
+        references: [assets.id],
+    }),
+    assignedTo: one(profiles, {
+        fields: [moderationQueue.assignedTo],
+        references: [profiles.id],
+    }),
+    logs: many(moderationLog),
+}));
+
+export const moderationLogRelations = relations(moderationLog, ({ one }) => ({
+    queue: one(moderationQueue, {
+        fields: [moderationLog.queueId],
+        references: [moderationQueue.id],
+    }),
+    moderator: one(profiles, {
+        fields: [moderationLog.moderatorId],
+        references: [profiles.id],
+    }),
+}));
+
