@@ -41,6 +41,26 @@ export default async function LoginPage({
         return redirect("/login?message=Check your email for magic link");
     };
 
+    const signInWithPassword = async (formData: FormData) => {
+        "use server";
+        const email = formData.get("email") as string;
+        const password = formData.get("password") as string;
+        const supabase = await createClient();
+
+
+        const { error } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+        });
+
+        if (error) {
+            console.error("❌ Auth Error:", error.message);
+            return redirect(`/login?message=Could not authenticate: ${error.message}`);
+        }
+
+        return redirect("/dashboard");
+    };
+
     const signInWithGoogle = async () => {
         "use server";
         const supabase = await createClient();
@@ -104,27 +124,62 @@ export default async function LoginPage({
                             </div>
                         </div>
 
-                        <form className="flex flex-col gap-4">
-                            <div>
-                                <label htmlFor="email" className="sr-only">
-                                    Email address
-                                </label>
-                                <input
-                                    id="email"
-                                    name="email"
-                                    type="email"
-                                    autoComplete="email"
-                                    required
-                                    className="relative block w-full appearance-none rounded-md border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-500 focus:z-10 focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
-                                    placeholder="Email address"
-                                />
+                        <form className="mt-8 space-y-6">
+                            <div className="space-y-4 rounded-md shadow-sm">
+                                <div>
+                                    <label htmlFor="email-address" className="sr-only">
+                                        Email address
+                                    </label>
+                                    <input
+                                        id="email-address"
+                                        name="email"
+                                        type="email"
+                                        autoComplete="email"
+                                        required
+                                        className="relative block w-full appearance-none rounded-t-md border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-500 focus:z-10 focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
+                                        placeholder="Email address"
+                                    />
+                                </div>
+                                <div>
+                                    <label htmlFor="password" className="sr-only">
+                                        Password
+                                    </label>
+                                    <input
+                                        id="password"
+                                        name="password"
+                                        type="password"
+                                        autoComplete="current-password"
+                                        // Password is not required for Magic Link flow, but we might want to make it feel optional visually if empty
+                                        // However, unified form suggests standard login.
+                                        // If user clicks "Magic Link", form submits even if password empty? Yes if not 'required'.
+                                        // Let's remove 'required' from password to allow Magic Link submission without it.
+                                        className="relative block w-full appearance-none rounded-b-md border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-500 focus:z-10 focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
+                                        placeholder="Password (optional for Magic Link)"
+                                    />
+                                </div>
                             </div>
-                            <button
-                                formAction={signIn}
-                                className="group relative flex w-full justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                            >
-                                Send Magic Link
-                            </button>
+
+                            <div className="flex flex-col gap-4">
+                                <button
+                                    formAction={signInWithPassword}
+                                    className="group relative flex w-full justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                                >
+                                    Sign in with Password
+                                </button>
+
+                                <div className="relative flex py-1 items-center">
+                                    <div className="flex-grow border-t border-gray-200"></div>
+                                    <span className="flex-shrink mx-4 text-gray-400 text-xs uppercase tracking-wider">Or</span>
+                                    <div className="flex-grow border-t border-gray-200"></div>
+                                </div>
+
+                                <button
+                                    formAction={signIn}
+                                    className="group relative flex w-full justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                                >
+                                    Sign in with Magic Link
+                                </button>
+                            </div>
                         </form>
 
                         {message && (

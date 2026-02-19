@@ -11,6 +11,7 @@ export async function setRole(data: {
     bio?: string;
     companyName?: string;
     website?: string;
+    password?: string;
 }) {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -53,12 +54,18 @@ export async function setRole(data: {
         });
 
         // Update Supabase user metadata for caching/middleware
-        await supabase.auth.updateUser({
+        const updateData: { data: { role: "buyer" | "builder"; full_name: string }; password?: string } = {
             data: {
                 role: data.role,
                 full_name: data.fullName,
             }
-        });
+        };
+
+        if (data.password) {
+            updateData.password = data.password;
+        }
+
+        await supabase.auth.updateUser(updateData);
 
         revalidatePath("/dashboard");
         revalidatePath("/onboarding");

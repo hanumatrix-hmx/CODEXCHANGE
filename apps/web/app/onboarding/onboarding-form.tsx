@@ -22,6 +22,7 @@ export function OnboardingForm() {
         bio: "",
         companyName: "",
         website: "",
+        password: "",
     });
 
     const handleRoleSelect = (selectedRole: "buyer" | "builder") => {
@@ -32,7 +33,7 @@ export function OnboardingForm() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        if (!role || !formData.fullName.trim()) return;
+        if (!role || !formData.fullName.trim() || !formData.password || formData.password.length < 6) return;
 
         setIsLoading(true);
 
@@ -114,6 +115,22 @@ export function OnboardingForm() {
                         onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
                         className="resize-none h-24"
                     />
+                </div>
+
+                <div className="space-y-2">
+                    <Label htmlFor="password">Create Password <span className="text-red-500">*</span></Label>
+                    <Input
+                        id="password"
+                        type="password"
+                        placeholder="Min 6 characters"
+                        value={formData.password}
+                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                        required
+                        minLength={6}
+                    />
+                    <p className="text-xs text-gray-500">
+                        Set a password to log in without Magic Link next time.
+                    </p>
                 </div>
 
                 {role === "builder" && (
