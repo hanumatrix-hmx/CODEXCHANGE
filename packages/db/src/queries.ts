@@ -18,6 +18,11 @@ export async function getAssetBySlug(slug: string) {
                 limit: 10,
                 orderBy: [desc(reviewsTable.createdAt)],
             },
+            tags: {
+                with: {
+                    tag: true,
+                },
+            },
         },
     });
 
@@ -169,7 +174,7 @@ export async function getBuyerStats(buyerId: string) {
 /**
  * Increment asset view count
  */
-export async function incrementAssetViews(assetId: string) {
+export async function incrementAssetViews(_assetId: string) {
     // TODO: Add viewsCount field to assets schema
     // For now, this function is a no-op to prevent errors
     // await db

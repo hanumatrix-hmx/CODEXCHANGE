@@ -64,7 +64,7 @@ export const paymentRouter = createTRPCRouter({
                     licenseType: input.licenseType,
                     buyerId: ctx.user.id,
                     buyerEmail: ctx.user.email,
-                    buyerName: ctx.user.name,
+                    buyerName: ctx.user.name || "",
                 },
                 orderAmount,
                 returnUrl

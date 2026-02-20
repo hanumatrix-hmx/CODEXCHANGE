@@ -16,7 +16,6 @@ export interface PricingCardProps {
     };
     features: string[];
     assetId: string;
-    assetName: string;
 }
 
 const licenseConfig = {
@@ -36,7 +35,6 @@ export function PricingCard({
     scarcity,
     features,
     assetId,
-    assetName,
 }: PricingCardProps) {
     const config = licenseConfig[licenseType];
     const [showCheckout, setShowCheckout] = useState(false);
@@ -95,13 +93,13 @@ export function PricingCard({
 
                 <Button
                     onClick={handleBuyClick}
-                    disabled={createOrder.isLoading || scarcity.remaining === 0}
+                    disabled={createOrder.isPending || scarcity.remaining === 0}
                     className="mt-auto w-full"
                     size="lg"
                 >
                     {scarcity.remaining === 0
                         ? "Sold Out"
-                        : createOrder.isLoading
+                        : createOrder.isPending
                             ? "Creating Order..."
                             : `Buy ${config.title}`}
                 </Button>

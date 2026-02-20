@@ -24,9 +24,30 @@ function SubmitButton() {
     );
 }
 
+const PLATFORM_FEE_PERCENTAGE = 0.16;
+const GST_ON_FEE_PERCENTAGE = 0.18;
+
+function calculateEarnings(price: number) {
+    if (!price || isNaN(price) || price < 0) return null;
+
+    const platformFee = price * PLATFORM_FEE_PERCENTAGE;
+    const gstOnFee = platformFee * GST_ON_FEE_PERCENTAGE;
+    const totalDeduction = platformFee + gstOnFee;
+    const builderEarnings = price - totalDeduction;
+
+    return {
+        platformFee,
+        gstOnFee,
+        totalDeduction,
+        builderEarnings
+    };
+}
+
 export default function SubmitAssetForm({ categories }: { categories: any[] }) {
     const [state, formAction] = useActionState(submitAsset, initialState);
     const [selectedImages, setSelectedImages] = useState<number>(0);
+    const [usageLicensePrice, setUsageLicensePrice] = useState<string>("");
+    const [sourceLicensePrice, setSourceLicensePrice] = useState<string>("");
     const [usageFeatures, setUsageFeatures] = useState<string[]>(["Deploy to production", "Unlimited end users", "Technical support", "Updates for 1 year"]);
     const [sourceFeatures, setSourceFeatures] = useState<string[]>(["Full source code access", "Modify and customize", "White-label rights", "Lifetime updates", "Priority support"]);
 
@@ -192,10 +213,26 @@ export default function SubmitAssetForm({ categories }: { categories: any[] }) {
                             id="usageLicensePrice"
                             required
                             placeholder="0.00"
+                            value={usageLicensePrice}
+                            onChange={(e) => setUsageLicensePrice(e.target.value)}
                             className="block w-full rounded-lg border border-gray-300 pl-8 pr-4 py-3 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-blue-500"
                         />
                     </div>
-                    <p className="mt-1 text-xs text-gray-500">Use 0 for free assets.</p>
+                    {(() => {
+                        const price = parseFloat(usageLicensePrice);
+                        const earnings = calculateEarnings(price);
+                        if (earnings) {
+                            return (
+                                <div className="mt-2 text-xs text-gray-600 bg-gray-50 p-2 rounded border border-gray-200">
+                                    <div className="flex justify-between"><span>Buyer Pays:</span> <span className="font-medium">₹{price.toFixed(2)}</span></div>
+                                    <div className="flex justify-between text-red-600"><span>Platform Fee (16%):</span> <span>-₹{earnings.platformFee.toFixed(2)}</span></div>
+                                    <div className="flex justify-between text-red-600"><span>GST on Fee (18%):</span> <span>-₹{earnings.gstOnFee.toFixed(2)}</span></div>
+                                    <div className="flex justify-between font-semibold border-t border-gray-300 mt-1 pt-1 text-green-700"><span>You Get:</span> <span>₹{earnings.builderEarnings.toFixed(2)}</span></div>
+                                </div>
+                            );
+                        }
+                        return <p className="mt-1 text-xs text-gray-500">Use 0 for free assets.</p>;
+                    })()}
                     {state?.error?.usageLicensePrice && (
                         <p className="mt-1 text-sm text-red-600">{state.error.usageLicensePrice}</p>
                     )}
@@ -241,10 +278,26 @@ export default function SubmitAssetForm({ categories }: { categories: any[] }) {
                             name="sourceLicensePrice" // This needs to be handled in action if not already
                             id="sourceLicensePrice"
                             placeholder="Optional"
+                            value={sourceLicensePrice}
+                            onChange={(e) => setSourceLicensePrice(e.target.value)}
                             className="block w-full rounded-lg border border-gray-300 pl-8 pr-4 py-3 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-blue-500"
                         />
                     </div>
-                    <p className="mt-1 text-xs text-gray-500">Leave empty if source code is not for sale.</p>
+                    {(() => {
+                        const price = parseFloat(sourceLicensePrice);
+                        const earnings = calculateEarnings(price);
+                        if (earnings) {
+                            return (
+                                <div className="mt-2 text-xs text-gray-600 bg-gray-50 p-2 rounded border border-gray-200">
+                                    <div className="flex justify-between"><span>Buyer Pays:</span> <span className="font-medium">₹{price.toFixed(2)}</span></div>
+                                    <div className="flex justify-between text-red-600"><span>Platform Fee (16%):</span> <span>-₹{earnings.platformFee.toFixed(2)}</span></div>
+                                    <div className="flex justify-between text-red-600"><span>GST on Fee (18%):</span> <span>-₹{earnings.gstOnFee.toFixed(2)}</span></div>
+                                    <div className="flex justify-between font-semibold border-t border-gray-300 mt-1 pt-1 text-green-700"><span>You Get:</span> <span>₹{earnings.builderEarnings.toFixed(2)}</span></div>
+                                </div>
+                            );
+                        }
+                        return <p className="mt-1 text-xs text-gray-500">Leave empty if source code is not for sale.</p>;
+                    })()}
 
                     {/* Source Features */}
                     <div className="mt-4">

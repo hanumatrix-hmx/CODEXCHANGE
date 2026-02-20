@@ -128,12 +128,31 @@ export default function AssetPage() {
                                     <h3 className="text-sm font-medium text-gray-900">Tech Stack</h3>
                                     <div className="mt-2 flex flex-wrap gap-2">
                                         {asset.techStack.map((tech, index) => (
-                                            <span
+                                            <Link
                                                 key={index}
-                                                className="inline-flex items-center rounded-md bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-800"
+                                                href={`/browse?tag=${encodeURIComponent(tech)}`}
+                                                className="inline-flex items-center rounded-md bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-800 hover:bg-gray-200"
                                             >
                                                 {tech}
-                                            </span>
+                                            </Link>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Tags */}
+                            {asset.tags && asset.tags.length > 0 && (
+                                <div className="mt-6">
+                                    <h3 className="text-sm font-medium text-gray-900">Tags</h3>
+                                    <div className="mt-2 flex flex-wrap gap-2">
+                                        {asset.tags.map((item: any) => (
+                                            <Link
+                                                key={item.tag.id}
+                                                href={`/browse?tag=${encodeURIComponent(item.tag.name)}`}
+                                                className="inline-flex items-center rounded-md bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100"
+                                            >
+                                                #{item.tag.name}
+                                            </Link>
                                         ))}
                                     </div>
                                 </div>
@@ -203,7 +222,6 @@ export default function AssetPage() {
                                     }}
                                     features={usageLicenseFeatures}
                                     assetId={asset.id}
-                                    assetName={asset.name}
                                 />
                             )}
                             {asset.sourceLicensePrice && (
@@ -216,7 +234,6 @@ export default function AssetPage() {
                                     }}
                                     features={sourceLicenseFeatures}
                                     assetId={asset.id}
-                                    assetName={asset.name}
                                 />
                             )}
                         </div>

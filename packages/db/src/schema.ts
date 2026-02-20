@@ -38,6 +38,11 @@ export const builderProfiles = pgTable("builder_profiles", {
 
     verificationStatus: builderVerificationStatusEnum("verification_status").default("pending").notNull(),
 
+    // Stats
+    totalRevenue: decimal("total_revenue", { precision: 10, scale: 2 }).default("0"),
+    totalSales: integer("total_sales").default(0),
+    averageRating: decimal("average_rating", { precision: 3, scale: 2 }).default("0"),
+
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

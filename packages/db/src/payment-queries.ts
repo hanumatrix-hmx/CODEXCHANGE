@@ -1,6 +1,6 @@
 import { db } from "./index";
 import { transactions, licenses, assets } from "./schema";
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, desc, sql } from "drizzle-orm";
 
 /**
  * Create a new transaction record
@@ -129,4 +129,15 @@ export async function getUserTransactions(userId: string) {
     });
 
     return userTransactions;
+}
+
+/**
+ * Get license by transaction ID
+ */
+export async function getLicenseByTransactionId(transactionId: string) {
+    const license = await db.query.licenses.findFirst({
+        where: eq(licenses.transactionId, transactionId),
+    });
+
+    return license;
 }

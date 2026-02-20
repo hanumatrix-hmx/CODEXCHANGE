@@ -3,6 +3,7 @@ import {
     updateTransactionStatus,
     createLicense,
     getTransactionByOrderId,
+    getLicenseByTransactionId,
 } from "@codexchange/db/src/payment-queries";
 import type { WebhookPayload } from "@codexchange/payment";
 
@@ -13,8 +14,8 @@ export async function POST(request: NextRequest) {
         const webhookData: WebhookPayload = JSON.parse(payload);
 
         // Get signature from headers for verification (optional but recommended)
-        const signature = request.headers.get("x-webhook-signature") || "";
-        const timestamp = request.headers.get("x-webhook-timestamp") || "";
+        // const _signature = request.headers.get("x-webhook-signature") || "";
+        // const _timestamp = request.headers.get("x-webhook-timestamp") || "";
 
         // TODO: Verify webhook signature
         // const isValid = verifyWebhookSignature(payload, signature, timestamp);
@@ -42,9 +43,9 @@ export async function POST(request: NextRequest) {
         // Create license if payment successful and not already created
         if (paymentStatus === "SUCCESS") {
             // Check if license already exists to prevent duplicates
-            const existingLicense = await getTransactionByOrderId(cashfreeOrderId);
+            const existingLicense = await getLicenseByTransactionId(transaction.id);
 
-            if (existingLicense && !existingLicense.transactionId) {
+            if (!existingLicense) {
                 await createLicense({
                     assetId: transaction.assetId,
                     buyerId: transaction.buyerId,
