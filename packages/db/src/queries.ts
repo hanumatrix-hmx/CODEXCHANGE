@@ -100,9 +100,8 @@ export async function getBuilderAnalytics(builderId: string) {
         // Calculate totals with safe defaults
         const totalAssets = builderAssets.length;
 
-        // TODO: Once schema is updated with status field, uncomment this:
-        // const approvedAssets = builderAssets.filter((a: any) => a.status === "approved").length;
-        const approvedAssets = totalAssets; // Temporary: assume all are approved
+        // Calculate actual totals based on status
+        const approvedAssets = builderAssets.filter((a: any) => a.status === "approved").length;
 
         // TODO: These fields need to be added to schema
         const totalSales = 0; // Will be calculated from transactions once schema is ready
@@ -174,14 +173,11 @@ export async function getBuyerStats(buyerId: string) {
 /**
  * Increment asset view count
  */
-export async function incrementAssetViews(_assetId: string) {
-    // TODO: Add viewsCount field to assets schema
-    // For now, this function is a no-op to prevent errors
-    // await db
-    //     .update(assets)
-    //     .set({
-    //         viewsCount: sql`${assets.viewsCount} + 1`,
-    //     })
-    //     .where(eq(assets.id, assetId));
-    return; // No-op until schema is updated
+export async function incrementAssetViews(assetId: string) {
+    await db
+        .update(assets)
+        .set({
+            viewsCount: sql`${assets.viewsCount} + 1`,
+        })
+        .where(eq(assets.id, assetId));
 }

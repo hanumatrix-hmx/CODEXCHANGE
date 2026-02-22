@@ -106,13 +106,14 @@ To grant admin privileges to a user:
   - Multiple image uploads for assets.
   - **Image Zoom**: High-quality zoom for cover and gallery images using `react-medium-image-zoom`.
 - **License Customization**: Builders can define specific features for Usage and Source licenses (e.g., "Unlimited users", "Deployment support").
+- **Unique View Counter**: Intelligent view tracking using session-based cookies to prevent artificial view count inflation.
 - **Admin Dashboard**: Manage users and assets.
 
 ## 🗄️ Database
 
 We use Drizzle ORM with Supabase Postgres. Schema is defined in `packages/db/src/schema.ts`.
 
-**Full table list (17 tables):**
+**Full table list (19 tables):**
 - `profiles` - User profiles (extends Supabase auth)
 - `builder_profiles` - Builder-specific compliance and store data
 - `categories` - Asset categories (hierarchical)
@@ -124,10 +125,12 @@ We use Drizzle ORM with Supabase Postgres. Schema is defined in `packages/db/src
 - `moderation_queue` - Quality gate for new/updated assets
 - `moderation_log` - History of moderation actions
 - `licenses` - Active/expired licenses for buyers
-- `transactions` - Payment gateway transaction records
+- `orders` - Payment intent records with tax breakdown (GST/TCS)
+- `payments` - Captured payment records linked to orders
+- `refunds` - Refund tracking against payments
 - `surveys` - Pricing surveys (Van Westendorp model)
 - `survey_responses` - Individual user feedback on pricing
-- `payouts` - Builder earnings and transfers
+- `payouts` - Builder earnings and transfers (updated structure)
 - `reviews` - Asset ratings and feedback
 - `audit_logs` - System-wide activity tracking
 

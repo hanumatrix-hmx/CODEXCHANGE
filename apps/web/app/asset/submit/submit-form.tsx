@@ -256,13 +256,6 @@ export default function SubmitAssetForm({ categories }: { categories: any[] }) {
                             <button type="button" onClick={() => addFeature('usage')} className="text-xs text-blue-600 hover:underline">+ Add Feature</button>
                         </div>
                     </div>
-
-                    {/* Source Features (Optional - conceptually linked to source license if we had a separate price input) */}
-                    {/* For now, we only have one price input in this UI but the user asked for source features too.
-                        I'll add a separate Source License Price input to match the schema/plan properly or just features.
-                        The previous UI only had usageLicensePrice. I will add Source Price + Features to be complete.
-                        Wait, the file content I read shows only usageLicensePrice. I should add Source License Price too as per plan.
-                     */}
                 </div>
 
                 <div className="sm:col-span-1">
@@ -322,6 +315,26 @@ export default function SubmitAssetForm({ categories }: { categories: any[] }) {
 
                 {/* Hidden input to pass licenseFeatures as JSON string */}
                 <input type="hidden" name="licenseFeatures" value={JSON.stringify({ usage: usageFeatures.filter(f => f), source: sourceFeatures.filter(f => f) })} />
+
+                <div className="sm:col-span-1">
+                    <label htmlFor="maxLicenses" className="block text-sm font-semibold text-gray-900">
+                        Maximum Licenses (Optional)
+                    </label>
+                    <div className="mt-2">
+                        <input
+                            type="number"
+                            name="maxLicenses"
+                            id="maxLicenses"
+                            placeholder="e.g. 100"
+                            min="1"
+                            className="block w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-blue-500"
+                        />
+                    </div>
+                    <p className="mt-1 text-xs text-gray-500">Limit the number of licenses available for purchase to create scarcity.</p>
+                    {state?.error?.maxLicenses && (
+                        <p className="mt-1 text-sm text-red-600">{state.error.maxLicenses}</p>
+                    )}
+                </div>
 
                 <div className="sm:col-span-1">
                     <label htmlFor="techStack" className="block text-sm font-semibold text-gray-900">

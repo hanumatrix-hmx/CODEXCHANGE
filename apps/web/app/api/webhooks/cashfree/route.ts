@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
-    updateTransactionStatus,
+    capturePayment,
     createLicense,
-    getTransactionByOrderId,
-    getLicenseByTransactionId,
+    getOrderByCashfreeId,
+    getLicenseByOrderId,
 } from "@codexchange/db/src/payment-queries";
 import type { WebhookPayload } from "@codexchange/payment";
 
@@ -28,29 +28,29 @@ export async function POST(request: NextRequest) {
         const cashfreeOrderId = order.order_id;
         const paymentStatus = payment.payment_status;
 
-        // Get transaction from database
-        const transaction = await getTransactionByOrderId(cashfreeOrderId);
+        // Get order from database
+        const dbOrder = await getOrderByCashfreeId(cashfreeOrderId);
 
-        if (!transaction) {
-            console.error(`Transaction not found for order: ${cashfreeOrderId}`);
-            return NextResponse.json({ error: "Transaction not found" }, { status: 404 });
+        if (!dbOrder) {
+            console.error(`Order not found for cashfree_order_id: ${cashfreeOrderId}`);
+            return NextResponse.json({ error: "Order not found" }, { status: 404 });
         }
 
-        // Update transaction status
-        const status = paymentStatus === "SUCCESS" ? "completed" : "failed";
-        await updateTransactionStatus(cashfreeOrderId, status, payment);
+        // Update order status
+        const status = paymentStatus === "SUCCESS" ? "success" : "failed";
+        await capturePayment(cashfreeOrderId, status, payment);
 
         // Create license if payment successful and not already created
         if (paymentStatus === "SUCCESS") {
             // Check if license already exists to prevent duplicates
-            const existingLicense = await getLicenseByTransactionId(transaction.id);
+            const existingLicense = await getLicenseByOrderId(dbOrder.id);
 
             if (!existingLicense) {
                 await createLicense({
-                    assetId: transaction.assetId,
-                    buyerId: transaction.buyerId,
-                    transactionId: transaction.id,
-                    licenseType: transaction.licenseType as "usage" | "source",
+                    assetId: dbOrder.assetId,
+                    buyerId: dbOrder.buyerId,
+                    orderId: dbOrder.id,
+                    licenseType: dbOrder.licenseType as "usage" | "source",
                 });
 
                 console.log(`License created for order: ${cashfreeOrderId}`);

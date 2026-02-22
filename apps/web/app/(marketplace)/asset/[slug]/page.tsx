@@ -2,13 +2,14 @@
 
 import { api } from "@/utils/trpc/client";
 import { notFound, useParams } from "next/navigation";
-import { ShieldCheck, ExternalLink, Github, Globe, ArrowLeft } from "lucide-react";
+import { Eye, ShieldCheck, ExternalLink, Github, Globe, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { ZoomImage } from "@/components/ui/zoom-image";
 import { QualityBadge } from "@/components/quality-badge";
 import { PricingCard } from "@/components/pricing-card";
 import { AssetCard } from "@/components/asset-card";
 import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
+import { useEffect } from "react";
 
 export default function AssetPage() {
     const params = useParams();
@@ -28,6 +29,16 @@ export default function AssetPage() {
             enabled: !!asset,
         }
     );
+
+    const incrementViews = api.asset.incrementViews.useMutation();
+
+    // Increment view count on client-side after asset loads
+    useEffect(() => {
+        if (asset?.id) {
+            incrementViews.mutate({ assetId: asset.id });
+        }
+    }, [asset?.id]);
+
 
     if (isLoading) {
         return (
@@ -236,6 +247,12 @@ export default function AssetPage() {
                                     assetId={asset.id}
                                 />
                             )}
+
+                            {/* Total Views */}
+                            <div className="mt-4 flex items-center justify-center text-sm text-gray-500 bg-gray-50 py-2 rounded-lg border border-gray-100">
+                                <Eye className="mr-2 h-4 w-4" />
+                                <span>{asset.viewsCount} total views</span>
+                            </div>
                         </div>
                     </div>
                 </div>

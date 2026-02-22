@@ -14,6 +14,7 @@ const assetSchema = z.object({
     longDescription: z.string().optional(),
     usageLicensePrice: z.string().regex(/^\d+(\.\d{1,2})?$/, "Invalid price format"),
     techStack: z.string().optional(),
+    maxLicenses: z.string().optional().transform(val => val ? parseInt(val, 10) : null),
     demoUrl: z.string().url("Invalid URL").optional().or(z.literal("")),
     githubUrl: z.string().url("Invalid URL").optional().or(z.literal("")),
     licenseFeatures: z.string().transform((str, ctx) => {
@@ -33,6 +34,7 @@ export type FormState = {
         categoryId?: string[];
         description?: string[];
         usageLicensePrice?: string[];
+        maxLicenses?: string[];
         demoUrl?: string[];
         githubUrl?: string[];
         _form?: string[];
@@ -55,6 +57,7 @@ export async function submitAsset(_prevState: any, formData: FormData): Promise<
         description: formData.get("description") as string,
         longDescription: formData.get("longDescription") as string,
         usageLicensePrice: formData.get("usageLicensePrice") as string,
+        maxLicenses: formData.get("maxLicenses") as string,
         techStack: formData.get("techStack") as string,
         demoUrl: formData.get("demoUrl") as string,
         githubUrl: formData.get("githubUrl") as string,
