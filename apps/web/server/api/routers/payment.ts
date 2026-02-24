@@ -5,11 +5,11 @@ import {
     verifyPayment as verifyCashfreePayment,
 } from "@codexchange/payment";
 import {
-    createTransaction,
-    updateTransactionStatus,
+    createOrder,
+    capturePayment,
     createLicense,
-    getUserTransactions,
-    getTransactionByOrderId,
+    getUserOrders,
+    getOrderByCashfreeId,
 } from "@codexchange/db/src/payment-queries";
 import { db } from "@codexchange/db";
 import { assets } from "@codexchange/db";
@@ -53,10 +53,14 @@ export const paymentRouter = createTRPCRouter({
                 throw new Error(`${input.licenseType} license not available for this asset`);
             }
 
-            const orderAmount = parseFloat(priceStr);
+            const amountTotal = parseFloat(priceStr);
+            const amountBase = amountTotal;
+            const amountPlatformFee = amountBase * 0.16;
+            const amountGst = amountPlatformFee * 0.18;
+            const amountTcs = amountBase * 0.01;
 
             // Create Cashfree order
-            const returnUrl = `${process.env.NEXT_PUBLIC_APP_URL}/payment/verify`;
+            const returnUrl = `${process.env.NEXT_PUBLIC_APP_URL}/payment/verify?order_id={order_id}`;
 
             const orderResponse = await createCashfreeOrder(
                 {
@@ -64,18 +68,22 @@ export const paymentRouter = createTRPCRouter({
                     licenseType: input.licenseType,
                     buyerId: ctx.user.id,
                     buyerEmail: ctx.user.email,
-                    buyerName: ctx.user.name,
+                    buyerName: ctx.user.name || "",
                 },
-                orderAmount,
+                amountTotal,
                 returnUrl
             );
 
-            // Create transaction record in database
-            await createTransaction({
+            // Create order record in database
+            await createOrder({
                 assetId: input.assetId,
                 buyerId: ctx.user.id,
                 builderId: asset.builderId,
-                amount: orderAmount.toString(),
+                amountBase: amountBase.toFixed(2),
+                amountPlatformFee: amountPlatformFee.toFixed(2),
+                amountGst: amountGst.toFixed(2),
+                amountTcs: amountTcs.toFixed(2),
+                amountTotal: amountTotal.toFixed(2),
                 licenseType: input.licenseType,
                 cashfreeOrderId: orderResponse.orderId,
                 paymentSessionId: orderResponse.paymentSessionId,
@@ -98,25 +106,26 @@ export const paymentRouter = createTRPCRouter({
                 throw new Error("User not authenticated");
             }
 
-            // Get transaction from database
-            const transaction = await getTransactionByOrderId(input.orderId);
+            // Get order from database
+            const order = await getOrderByCashfreeId(input.orderId);
 
-            if (!transaction) {
-                throw new Error("Transaction not found");
+            if (!order) {
+                throw new Error("Order not found");
             }
 
-            // Verify the user owns this transaction
-            if (transaction.buyerId !== ctx.user.id) {
+            // Verify the user owns this order
+            if (order.buyerId !== ctx.user.id) {
                 throw new Error("Unauthorized");
             }
 
             // Verify payment with Cashfree
             const paymentStatus = await verifyCashfreePayment(input.orderId);
 
-            // Update transaction status
-            await updateTransactionStatus(
+            // Update order status and capture payment
+            const statusToSet = paymentStatus.paymentStatus === "SUCCESS" ? "success" : "failed";
+            await capturePayment(
                 input.orderId,
-                paymentStatus.paymentStatus === "SUCCESS" ? "completed" : "failed",
+                statusToSet,
                 paymentStatus
             );
 
@@ -124,29 +133,29 @@ export const paymentRouter = createTRPCRouter({
             let license = null;
             if (paymentStatus.paymentStatus === "SUCCESS") {
                 license = await createLicense({
-                    assetId: transaction.assetId,
-                    buyerId: transaction.buyerId,
-                    transactionId: transaction.id,
-                    licenseType: transaction.licenseType as "usage" | "source",
+                    assetId: order.assetId,
+                    buyerId: order.buyerId,
+                    orderId: order.id,
+                    licenseType: order.licenseType as "usage" | "source",
                 });
             }
 
             return {
                 status: paymentStatus.paymentStatus,
-                transaction,
+                order,
                 license,
             };
         }),
 
     /**
-     * Get user's transaction history
+     * Get user's order history
      */
-    getTransactionHistory: protectedProcedure.query(async ({ ctx }) => {
+    getOrderHistory: protectedProcedure.query(async ({ ctx }) => {
         if (!ctx.user) {
             throw new Error("User not authenticated");
         }
 
-        const transactions = await getUserTransactions(ctx.user.id);
-        return transactions;
+        const orders = await getUserOrders(ctx.user.id);
+        return orders;
     }),
 });

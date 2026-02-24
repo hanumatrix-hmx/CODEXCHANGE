@@ -42,21 +42,32 @@ export function CheckoutModal({
         try {
             setIsLoading(true);
 
+            if (typeof window === "undefined" || !window.Cashfree) {
+                throw new Error("Cashfree SDK not loaded. Please wait a moment and try again.");
+            }
+
             // Initialize Cashfree
-            const cashfree = await window.Cashfree({
+            const cashfree = window.Cashfree({
                 mode: process.env.NEXT_PUBLIC_CASHFREE_ENVIRONMENT || "sandbox",
             });
 
             // Open checkout
             const checkoutOptions = {
                 paymentSessionId: paymentSessionId,
-                returnUrl: `${process.env.NEXT_PUBLIC_APP_URL}/payment/verify?order_id=${orderId}`,
             };
 
             await cashfree.checkout(checkoutOptions);
         } catch (error) {
             console.error("Payment error:", error);
-            alert("Failed to open payment checkout. Please try again.");
+            let errorMessage = "Unknown error";
+            if (error instanceof Error) {
+                errorMessage = error.message;
+            } else if (typeof error === "string") {
+                errorMessage = error;
+            } else if (error && typeof error === "object" && "message" in error) {
+                errorMessage = String(error.message);
+            }
+            alert(`Failed to open payment checkout: ${errorMessage}. Please try again.`);
             setIsLoading(false);
         }
     };

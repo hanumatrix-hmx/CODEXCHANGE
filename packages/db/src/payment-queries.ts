@@ -1,66 +1,98 @@
 import { db } from "./index";
-import { transactions, licenses, assets } from "./schema";
-import { eq, and, desc, sql } from "drizzle-orm";
+import { orders, payments, licenses, assets } from "./schema";
+import { eq, desc, sql } from "drizzle-orm";
 
 /**
- * Create a new transaction record
+ * Create a new order record (intent to purchase)
  */
-export async function createTransaction(data: {
+export async function createOrder(data: {
     assetId: string;
     buyerId: string;
     builderId: string;
-    amount: string;
     licenseType: "usage" | "source";
+    amountBase: string;
+    amountPlatformFee: string;
+    amountGst: string;
+    amountTcs: string;
+    amountTotal: string;
     cashfreeOrderId: string;
     paymentSessionId: string;
 }) {
-    const [transaction] = await db
-        .insert(transactions)
+    const [order] = await db
+        .insert(orders)
         .values({
             ...data,
             status: "pending",
             currency: "INR",
-            paymentGateway: "cashfree",
         })
         .returning();
 
-    return transaction;
+    return order;
 }
 
 /**
- * Update transaction status after payment
+ * Capture payment and update order status
  */
-export async function updateTransactionStatus(
+export async function capturePayment(
     cashfreeOrderId: string,
-    status: string,
+    status: "success" | "failed",
     paymentDetails?: any
 ) {
-    const updateData: any = {
-        status,
-        updatedAt: new Date(),
-    };
+    // 1. Get the order first
+    const order = await db.query.orders.findFirst({
+        where: eq(orders.cashfreeOrderId, cashfreeOrderId),
+    });
 
-    if (paymentDetails) {
-        updateData.paymentDetails = paymentDetails;
-        updateData.gatewayTransactionId = paymentDetails.cf_payment_id;
-        updateData.paymentMethod = paymentDetails.payment_group;
+    if (!order) {
+        throw new Error(`Order not found for cashfreeOrderId: ${cashfreeOrderId}`);
     }
 
-    const [transaction] = await db
-        .update(transactions)
-        .set(updateData)
-        .where(eq(transactions.cashfreeOrderId, cashfreeOrderId))
-        .returning();
+    const orderStatus = status === "success" ? "paid" : "failed";
 
-    return transaction;
+    // 2. Perform transaction to update order and insert payment
+    const result = await db.transaction(async (tx) => {
+        // Update order status
+        const [updatedOrder] = await tx
+            .update(orders)
+            .set({
+                status: orderStatus,
+                updatedAt: new Date(),
+            })
+            .where(eq(orders.id, order.id))
+            .returning();
+
+        // Create payment record
+        const paymentData: any = {
+            orderId: order.id,
+            amount: order.amountTotal,
+            currency: order.currency,
+            status: status,
+            paymentGateway: "cashfree",
+        };
+
+        if (paymentDetails) {
+            paymentData.paymentDetails = paymentDetails;
+            paymentData.gatewayPaymentId = paymentDetails.cf_payment_id;
+            paymentData.paymentMethod = paymentDetails.payment_group;
+        }
+
+        const [payment] = await tx
+            .insert(payments)
+            .values(paymentData)
+            .returning();
+
+        return { order: updatedOrder, payment };
+    });
+
+    return result.order;
 }
 
 /**
- * Get transaction by Cashfree order ID
+ * Get order by Cashfree order ID
  */
-export async function getTransactionByOrderId(cashfreeOrderId: string) {
-    const transaction = await db.query.transactions.findFirst({
-        where: eq(transactions.cashfreeOrderId, cashfreeOrderId),
+export async function getOrderByCashfreeId(cashfreeOrderId: string) {
+    const order = await db.query.orders.findFirst({
+        where: eq(orders.cashfreeOrderId, cashfreeOrderId),
         with: {
             asset: true,
             buyer: true,
@@ -68,7 +100,7 @@ export async function getTransactionByOrderId(cashfreeOrderId: string) {
         },
     });
 
-    return transaction;
+    return order;
 }
 
 /**
@@ -77,7 +109,7 @@ export async function getTransactionByOrderId(cashfreeOrderId: string) {
 export async function createLicense(data: {
     assetId: string;
     buyerId: string;
-    transactionId: string;
+    orderId: string;
     licenseType: "usage" | "source";
 }) {
     // Generate a unique license key
@@ -113,11 +145,11 @@ export async function createLicense(data: {
 }
 
 /**
- * Get user's transaction history
+ * Get user's order history
  */
-export async function getUserTransactions(userId: string) {
-    const userTransactions = await db.query.transactions.findMany({
-        where: eq(transactions.buyerId, userId),
+export async function getUserOrders(userId: string) {
+    const userOrders = await db.query.orders.findMany({
+        where: eq(orders.buyerId, userId),
         with: {
             asset: {
                 with: {
@@ -125,8 +157,19 @@ export async function getUserTransactions(userId: string) {
                 },
             },
         },
-        orderBy: [desc(transactions.createdAt)],
+        orderBy: [desc(orders.createdAt)],
     });
 
-    return userTransactions;
+    return userOrders;
+}
+
+/**
+ * Get license by order ID
+ */
+export async function getLicenseByOrderId(orderId: string) {
+    const license = await db.query.licenses.findFirst({
+        where: eq(licenses.orderId, orderId),
+    });
+
+    return license;
 }

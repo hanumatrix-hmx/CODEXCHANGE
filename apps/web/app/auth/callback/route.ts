@@ -18,12 +18,12 @@ export async function GET(request: NextRequest) {
             if (user) {
                 const { data: profile } = await supabase
                     .from("profiles")
-                    .select("role")
+                    .select("role, full_name")
                     .eq("id", user.id)
                     .single();
 
-                // Redirect admin users directly to admin page
-                if (profile?.role === "admin") {
+                // Redirect admin users directly to admin page ONLY if profile is complete
+                if (profile?.role === "admin" && profile.full_name) {
                     return NextResponse.redirect(`${origin}/admin`);
                 }
             }

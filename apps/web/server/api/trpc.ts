@@ -10,7 +10,7 @@ export const createTRPCContext = async (opts: FetchCreateContextFnOptions) => {
     const supabase = await createClient();
     const { data: { user: authUser } } = await supabase.auth.getUser();
 
-    let user: { id: string; role: "admin" | "builder" | "buyer" } | null = null;
+    let user: { id: string; role: "admin" | "builder" | "buyer"; email: string; name: string | null } | null = null;
 
     if (authUser) {
         // Fetch user profile from database using raw query to avoid Drizzle version conflicts
@@ -22,6 +22,8 @@ export const createTRPCContext = async (opts: FetchCreateContextFnOptions) => {
             user = {
                 id: profiles.id,
                 role: profiles.role as "admin" | "builder" | "buyer",
+                email: profiles.email,
+                name: profiles.fullName,
             };
         }
     }

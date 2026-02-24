@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BadgeCheck } from "lucide-react";
+import { BadgeCheck, Eye } from "lucide-react";
 import { formatPrice } from "@/utils/format";
 
 export interface Asset {
@@ -13,6 +13,7 @@ export interface Asset {
     builderId: string;
     categoryId: string;
     status: string;
+    viewsCount?: number;
     category?: {
         name: string;
         slug: string;
@@ -56,7 +57,15 @@ export function AssetCard({ asset }: { asset: Asset }) {
                         <div className="flex items-center text-gray-900 font-bold">
                             {formatPrice(asset.usageLicensePrice)}
                         </div>
-                        <span className="text-xs text-gray-400">View Details →</span>
+                        <div className="flex items-center gap-3">
+                            {asset.viewsCount !== undefined && (
+                                <span className="flex items-center text-xs text-gray-500">
+                                    <Eye className="mr-1 h-3 w-3" />
+                                    {asset.viewsCount}
+                                </span>
+                            )}
+                            <span className="text-xs text-gray-400">View Details →</span>
+                        </div>
                     </div>
                 </div>
             </div>

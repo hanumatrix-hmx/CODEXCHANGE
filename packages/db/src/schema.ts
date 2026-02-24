@@ -5,8 +5,13 @@ import { relations } from "drizzle-orm";
 export const userRoleEnum = pgEnum("user_role", ["buyer", "builder", "admin"]);
 export const licenseTypeEnum = pgEnum("license_type", ["usage", "source"]);
 export const assetStatusEnum = pgEnum("asset_status", ["draft", "pending_review", "approved", "rejected"]);
-export const transactionStatusEnum = pgEnum("transaction_status", ["pending", "completed", "failed", "refunded"]);
+export const orderStatusEnum = pgEnum("order_status", ["pending", "paid", "failed", "cancelled", "refunded"]);
+export const paymentStatusEnum = pgEnum("payment_status", ["pending", "success", "failed"]);
+export const refundStatusEnum = pgEnum("refund_status", ["pending", "success", "failed"]);
 export const qualityTierEnum = pgEnum("quality_tier", ["bronze", "silver", "gold"]);
+export const builderVerificationStatusEnum = pgEnum("builder_verification_status", ["pending", "verified", "rejected"]);
+export const moderationStatusEnum = pgEnum("moderation_status", ["pending", "in_review", "approved", "rejected", "appealed"]);
+
 
 // Profiles (extends Supabase auth.users)
 export const profiles = pgTable("profiles", {
@@ -21,6 +26,29 @@ export const profiles = pgTable("profiles", {
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
+
+// Builder Profiles
+export const builderProfiles = pgTable("builder_profiles", {
+    id: uuid("id").primaryKey().references(() => profiles.id, { onDelete: "cascade" }),
+    storeName: text("store_name").notNull(),
+    storeSlug: text("store_slug").notNull().unique(),
+
+    // Indian Compliance
+    gstin: text("gstin").notNull(),
+    pan: text("pan").notNull(),
+    bankAccountId: text("bank_account_id").notNull(),
+
+    verificationStatus: builderVerificationStatusEnum("verification_status").default("pending").notNull(),
+
+    // Stats
+    totalRevenue: decimal("total_revenue", { precision: 10, scale: 2 }).default("0"),
+    totalSales: integer("total_sales").default(0),
+    averageRating: decimal("average_rating", { precision: 3, scale: 2 }).default("0"),
+
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 
 // Categories
 export const categories = pgTable("categories", {
@@ -54,11 +82,15 @@ export const assets = pgTable("assets", {
     // Quality
     qualityTier: qualityTierEnum("quality_tier"),
     status: assetStatusEnum("status").notNull().default("draft"),
+    viewsCount: integer("views_count").default(0).notNull(),
 
     // Technical details
     techStack: jsonb("tech_stack").$type<string[]>(),
     demoUrl: text("demo_url"),
     githubUrl: text("github_url"),
+
+    // License features
+    licenseFeatures: jsonb("license_features").$type<{ usage: string[]; source: string[] }>(),
 
     // Storage
     thumbnailUrl: text("thumbnail_url"),
@@ -72,12 +104,67 @@ export const assets = pgTable("assets", {
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+// Listing Images
+export const listingImages = pgTable("listing_images", {
+    id: uuid("id").primaryKey().defaultRandom(),
+    assetId: uuid("asset_id").notNull().references(() => assets.id, { onDelete: "cascade" }),
+    url: text("url").notNull(),
+    sortOrder: integer("sort_order").default(0).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Listing Versions
+export const listingVersions = pgTable("listing_versions", {
+    id: uuid("id").primaryKey().defaultRandom(),
+    assetId: uuid("asset_id").notNull().references(() => assets.id, { onDelete: "cascade" }),
+    version: text("version").notNull(), // Semver
+    changelog: text("changelog"),
+    packageUrl: text("package_url").notNull(),
+    checksum: text("checksum"), // SHA-256
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Tags
+export const tags = pgTable("tags", {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull().unique(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Listing Tags
+export const listingTags = pgTable("listing_tags", {
+    assetId: uuid("asset_id").notNull().references(() => assets.id, { onDelete: "cascade" }),
+    tagId: uuid("tag_id").notNull().references(() => tags.id, { onDelete: "cascade" }),
+}, (t) => ({
+    pk: [t.assetId, t.tagId],
+}));
+
+// Moderation
+export const moderationQueue = pgTable("moderation_queue", {
+    id: uuid("id").primaryKey().defaultRandom(),
+    assetId: uuid("asset_id").notNull().references(() => assets.id, { onDelete: "cascade" }),
+    status: moderationStatusEnum("status").default("pending").notNull(),
+    assignedTo: uuid("assigned_to").references(() => profiles.id),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const moderationLog = pgTable("moderation_log", {
+    id: uuid("id").primaryKey().defaultRandom(),
+    queueId: uuid("queue_id").notNull().references(() => moderationQueue.id, { onDelete: "cascade" }),
+    moderatorId: uuid("moderator_id").notNull().references(() => profiles.id),
+    action: text("action").notNull(), // approve, reject, comment, assign
+    reason: text("reason"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+
 // Licenses
 export const licenses = pgTable("licenses", {
     id: uuid("id").primaryKey().defaultRandom(),
     assetId: uuid("asset_id").notNull().references(() => assets.id, { onDelete: "cascade" }),
     buyerId: uuid("buyer_id").notNull().references(() => profiles.id, { onDelete: "cascade" }),
-    transactionId: uuid("transaction_id").references(() => transactions.id),
+    orderId: uuid("order_id").references(() => orders.id),
 
     licenseType: text("license_type").notNull(), // usage, source
     licenseKey: text("license_key").notNull().unique(),
@@ -88,27 +175,61 @@ export const licenses = pgTable("licenses", {
     createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-// Transactions
-export const transactions = pgTable("transactions", {
+// Orders (Intent to purchase)
+export const orders = pgTable("orders", {
     id: uuid("id").primaryKey().defaultRandom(),
     assetId: uuid("asset_id").notNull().references(() => assets.id),
     buyerId: uuid("buyer_id").notNull().references(() => profiles.id),
     builderId: uuid("builder_id").notNull().references(() => profiles.id),
 
-    amount: text("amount").notNull(), // Stored as string to avoid precision issues
-    currency: text("currency").default("INR").notNull(),
-    status: text("status").notNull(), // pending, completed, failed, refunded
     licenseType: text("license_type").notNull(), // usage, source
+    status: orderStatusEnum("status").notNull().default("pending"),
+    currency: text("currency").default("INR").notNull(),
+
+    // Financial calculations
+    amountBase: decimal("amount_base", { precision: 10, scale: 2 }).notNull(),
+    amountPlatformFee: decimal("amount_platform_fee", { precision: 10, scale: 2 }).notNull(),
+    amountGst: decimal("amount_gst", { precision: 10, scale: 2 }).notNull(),
+    amountTcs: decimal("amount_tcs", { precision: 10, scale: 2 }).default("0").notNull(),
+    amountTotal: decimal("amount_total", { precision: 10, scale: 2 }).notNull(),
 
     // Payment gateway details
-    paymentGateway: text("payment_gateway").default("cashfree"), // cashfree, razorpay, stripe, etc.
-    gatewayTransactionId: text("gateway_transaction_id"),
-
-    // Cashfree specific fields
     cashfreeOrderId: text("cashfree_order_id").unique(),
     paymentSessionId: text("payment_session_id"),
-    paymentMethod: text("payment_method"), // upi, card, netbanking, wallet
-    paymentDetails: jsonb("payment_details"), // Store raw Cashfree response
+
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Payments (Actual captured funds)
+export const payments = pgTable("payments", {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orderId: uuid("order_id").notNull().references(() => orders.id, { onDelete: "cascade" }),
+
+    amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+    currency: text("currency").default("INR").notNull(),
+    status: paymentStatusEnum("status").notNull().default("pending"),
+
+    paymentGateway: text("payment_gateway").default("cashfree"),
+    gatewayPaymentId: text("gateway_payment_id"), // e.g. cf_payment_id
+    paymentMethod: text("payment_method"),
+    paymentDetails: jsonb("payment_details"),
+
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Refunds
+export const refunds = pgTable("refunds", {
+    id: uuid("id").primaryKey().defaultRandom(),
+    paymentId: uuid("payment_id").notNull().references(() => payments.id),
+    orderId: uuid("order_id").notNull().references(() => orders.id),
+
+    amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+    currency: text("currency").default("INR").notNull(),
+    status: refundStatusEnum("status").notNull().default("pending"),
+    reason: text("reason"),
+    gatewayRefundId: text("gateway_refund_id"),
 
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -151,14 +272,16 @@ export const payouts = pgTable("payouts", {
     id: uuid("id").primaryKey().defaultRandom(),
     builderId: uuid("builder_id").notNull().references(() => profiles.id),
 
-    amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+    amount: decimal("amount", { precision: 10, scale: 2 }).notNull(), // Gross amount (amountBase)
+    tdsDeducted: decimal("tds_deducted", { precision: 10, scale: 2 }).default("0").notNull(),
+    netAmount: decimal("net_amount", { precision: 10, scale: 2 }).notNull(), // The actual amount sent to builder
     currency: text("currency").default("INR").notNull(),
-    status: text("status").notNull().default("pending"), // pending, processing, completed, failed
+    status: text("status").notNull().default("pending"), // pending, scheduled, completed, failed
 
     // Razorpay Route details
     transferId: text("transfer_id"),
 
-    transactionIds: jsonb("transaction_ids").$type<string[]>(),
+    orderIds: jsonb("order_ids").$type<string[]>(), // The orders that make up this payout
 
     createdAt: timestamp("created_at").defaultNow().notNull(),
     processedAt: timestamp("processed_at"),
@@ -197,12 +320,17 @@ export const auditLogs = pgTable("audit_logs", {
 });
 
 // Relations (for Drizzle queries)
-export const profilesRelations = relations(profiles, ({ many }) => ({
+export const profilesRelations = relations(profiles, ({ one, many }) => ({
     assetsCreated: many(assets),
     licenses: many(licenses),
-    transactions: many(transactions),
+    orders: many(orders),
     reviews: many(reviews),
+    builderProfile: one(builderProfiles, {
+        fields: [profiles.id],
+        references: [builderProfiles.id],
+    }),
 }));
+
 
 export const assetsRelations = relations(assets, ({ one, many }) => ({
     builder: one(profiles, {
@@ -214,10 +342,18 @@ export const assetsRelations = relations(assets, ({ one, many }) => ({
         references: [categories.id],
     }),
     licenses: many(licenses),
-    transactions: many(transactions),
+    orders: many(orders),
     reviews: many(reviews),
     surveys: many(surveys),
+    listingImages: many(listingImages),
+    versions: many(listingVersions),
+    tags: many(listingTags),
+    moderationQueue: one(moderationQueue, {
+        fields: [assets.id],
+        references: [moderationQueue.assetId],
+    }),
 }));
+
 
 export const reviewsRelations = relations(reviews, ({ one }) => ({
     asset: one(assets, {
@@ -243,23 +379,103 @@ export const licensesRelations = relations(licenses, ({ one }) => ({
         fields: [licenses.buyerId],
         references: [profiles.id],
     }),
-    transaction: one(transactions, {
-        fields: [licenses.transactionId],
-        references: [transactions.id],
+    order: one(orders, {
+        fields: [licenses.orderId],
+        references: [orders.id],
     }),
 }));
 
-export const transactionsRelations = relations(transactions, ({ one }) => ({
+export const ordersRelations = relations(orders, ({ one, many }) => ({
     asset: one(assets, {
-        fields: [transactions.assetId],
+        fields: [orders.assetId],
         references: [assets.id],
     }),
     buyer: one(profiles, {
-        fields: [transactions.buyerId],
+        fields: [orders.buyerId],
         references: [profiles.id],
     }),
     builder: one(profiles, {
-        fields: [transactions.builderId],
+        fields: [orders.builderId],
+        references: [profiles.id],
+    }),
+    payments: many(payments),
+}));
+
+export const paymentsRelations = relations(payments, ({ one, many }) => ({
+    order: one(orders, {
+        fields: [payments.orderId],
+        references: [orders.id],
+    }),
+    refunds: many(refunds),
+}));
+
+export const refundsRelations = relations(refunds, ({ one }) => ({
+    payment: one(payments, {
+        fields: [refunds.paymentId],
+        references: [payments.id],
+    }),
+    order: one(orders, {
+        fields: [refunds.orderId],
+        references: [orders.id],
+    }),
+}));
+
+export const builderProfilesRelations = relations(builderProfiles, ({ one }) => ({
+    profile: one(profiles, {
+        fields: [builderProfiles.id],
         references: [profiles.id],
     }),
 }));
+
+export const listingImagesRelations = relations(listingImages, ({ one }) => ({
+    asset: one(assets, {
+        fields: [listingImages.assetId],
+        references: [assets.id],
+    }),
+}));
+
+export const listingVersionsRelations = relations(listingVersions, ({ one }) => ({
+    asset: one(assets, {
+        fields: [listingVersions.assetId],
+        references: [assets.id],
+    }),
+}));
+
+export const tagsRelations = relations(tags, ({ many }) => ({
+    assets: many(listingTags),
+}));
+
+export const listingTagsRelations = relations(listingTags, ({ one }) => ({
+    asset: one(assets, {
+        fields: [listingTags.assetId],
+        references: [assets.id],
+    }),
+    tag: one(tags, {
+        fields: [listingTags.tagId],
+        references: [tags.id],
+    }),
+}));
+
+export const moderationQueueRelations = relations(moderationQueue, ({ one, many }) => ({
+    asset: one(assets, {
+        fields: [moderationQueue.assetId],
+        references: [assets.id],
+    }),
+    assignedTo: one(profiles, {
+        fields: [moderationQueue.assignedTo],
+        references: [profiles.id],
+    }),
+    logs: many(moderationLog),
+}));
+
+export const moderationLogRelations = relations(moderationLog, ({ one }) => ({
+    queue: one(moderationQueue, {
+        fields: [moderationLog.queueId],
+        references: [moderationQueue.id],
+    }),
+    moderator: one(profiles, {
+        fields: [moderationLog.moderatorId],
+        references: [profiles.id],
+    }),
+}));
+

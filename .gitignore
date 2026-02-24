@@ -56,3 +56,4 @@ check-db.ts
 seed-output.txt
 test-output.txt
 SETUP.md
+backup.dump
