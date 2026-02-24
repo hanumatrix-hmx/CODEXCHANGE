@@ -17,7 +17,9 @@ ALTER TABLE "assets" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "listing_images" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "listing_versions" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "licenses" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "transactions" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "orders" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "payments" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "refunds" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "tags" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "listing_tags" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "moderation_queue" ENABLE ROW LEVEL SECURITY;
@@ -74,12 +76,24 @@ CREATE POLICY "Listing tags are viewable by everyone" ON "listing_tags" FOR SELE
 CREATE POLICY "Builders can manage listing tags" ON "listing_tags" 
 FOR ALL USING (EXISTS (SELECT 1 FROM assets WHERE assets.id = asset_id AND assets.builder_id = auth.uid()));
 
--- 10. LICENSES & TRANSACTIONS
+-- 10. LICENSES, ORDERS, PAYMENTS, & REFUNDS
 CREATE POLICY "View own licenses" ON "licenses" 
 FOR SELECT USING (auth.uid() = buyer_id OR EXISTS (SELECT 1 FROM assets WHERE assets.id = asset_id AND assets.builder_id = auth.uid()));
 
-CREATE POLICY "View own transactions" ON "transactions" 
+CREATE POLICY "View own orders" ON "orders" 
 FOR SELECT USING (auth.uid() = buyer_id OR auth.uid() = builder_id OR public.is_admin(auth.uid()));
+
+CREATE POLICY "View own payments" ON "payments" 
+FOR SELECT USING (
+  EXISTS (SELECT 1 FROM orders WHERE orders.id = order_id AND (orders.buyer_id = auth.uid() OR orders.builder_id = auth.uid())) 
+  OR public.is_admin(auth.uid())
+);
+
+CREATE POLICY "View own refunds" ON "refunds" 
+FOR SELECT USING (
+  EXISTS (SELECT 1 FROM orders WHERE orders.id = order_id AND (orders.buyer_id = auth.uid() OR orders.builder_id = auth.uid())) 
+  OR public.is_admin(auth.uid())
+);
 
 -- 11. MODERATION
 CREATE POLICY "Moderators can view queue" ON "moderation_queue" 
@@ -117,7 +131,7 @@ CREATE POLICY "Users can manage own reviews" ON "reviews" FOR ALL USING (auth.ui
 CREATE POLICY "Admins can view audit logs" ON "audit_logs" FOR SELECT USING (public.is_admin(auth.uid()));
 
 
--- 16. STORAGE (listing-image bucket)
+-- 16. STORAGE (listing-images bucket)
 -- Note: 'storage.objects' is in the 'storage' schema, but we typically run this SQL as a migration or directly in SQL Editor.
 -- However, since this file is likely applied via a Drizzle script or similar, we must ensure we are targeting the correct schema/table.
 -- Standard Supabase Storage RLS:
@@ -125,31 +139,35 @@ CREATE POLICY "Admins can view audit logs" ON "audit_logs" FOR SELECT USING (pub
 -- Allow public read access to listing images
 CREATE POLICY "Public Access"
 ON storage.objects FOR SELECT
-USING ( bucket_id = 'listing-image' );
+USING ( bucket_id = 'listing-images' );
 
 -- Allow authenticated users to upload images
--- (Restricting to their own folder structure {user_id}/* is good practice)
-CREATE POLICY "Authenticated users can upload images"
-ON storage.objects FOR INSERT
+-- 1. Give public read access
+CREATE POLICY "Public Access listing-images" 
+ON storage.objects FOR SELECT 
+USING (bucket_id = 'listing-images');
+
+-- 2. Allow authenticated users to upload (INSERT)
+CREATE POLICY "Authenticated users can upload listing-images" 
+ON storage.objects FOR INSERT 
 WITH CHECK (
-  bucket_id = 'listing-image' 
+  bucket_id = 'listing-images' 
   AND auth.role() = 'authenticated'
-  AND (storage.foldername(name))[1] = auth.uid()::text
 );
 
--- Allow users to update/delete their own images
-CREATE POLICY "Users can invalid own images"
-ON storage.objects FOR UPDATE
+-- 3. Allow authenticated users to update
+CREATE POLICY "Authenticated users can update listing-images" 
+ON storage.objects FOR UPDATE 
 USING (
-  bucket_id = 'listing-image' 
+  bucket_id = 'listing-images' 
   AND auth.role() = 'authenticated'
-  AND (storage.foldername(name))[1] = auth.uid()::text
 );
 
-CREATE POLICY "Users can delete own images"
-ON storage.objects FOR DELETE
+-- 4. Allow authenticated users to delete
+CREATE POLICY "Authenticated users can delete listing-images" 
+ON storage.objects FOR DELETE 
 USING (
-  bucket_id = 'listing-image' 
+  bucket_id = 'listing-images' 
   AND auth.role() = 'authenticated'
-  AND (storage.foldername(name))[1] = auth.uid()::text
 );
+
