@@ -13,6 +13,7 @@ const assetSchema = z.object({
     description: z.string().min(10, "Description must be at least 10 characters"),
     longDescription: z.string().optional(),
     usageLicensePrice: z.string().regex(/^\d+(\.\d{1,2})?$/, "Invalid price format"),
+    sourceLicensePrice: z.string().regex(/^\d+(\.\d{1,2})?$/, "Invalid price format").optional().or(z.literal("")).transform(val => (val === "" || val === undefined) ? null : val),
     techStack: z.string().optional(),
     maxLicenses: z.string().optional().transform(val => val ? parseInt(val, 10) : null),
     demoUrl: z.string().url("Invalid URL").optional().or(z.literal("")),
@@ -34,6 +35,7 @@ export type FormState = {
         categoryId?: string[];
         description?: string[];
         usageLicensePrice?: string[];
+        sourceLicensePrice?: string[];
         maxLicenses?: string[];
         demoUrl?: string[];
         githubUrl?: string[];
@@ -57,6 +59,7 @@ export async function submitAsset(_prevState: any, formData: FormData): Promise<
         description: formData.get("description") as string,
         longDescription: formData.get("longDescription") as string,
         usageLicensePrice: formData.get("usageLicensePrice") as string,
+        sourceLicensePrice: formData.get("sourceLicensePrice") as string,
         maxLicenses: formData.get("maxLicenses") as string,
         techStack: formData.get("techStack") as string,
         demoUrl: formData.get("demoUrl") as string,
