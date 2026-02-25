@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Check } from "lucide-react";
 import { Button } from "./ui/button";
 import { ScarcityIndicator } from "./scarcity-indicator";
@@ -37,6 +38,7 @@ export function PricingCard({
     assetId,
 }: PricingCardProps) {
     const config = licenseConfig[licenseType];
+    const router = useRouter();
     const [showCheckout, setShowCheckout] = useState(false);
     const [orderDetails, setOrderDetails] = useState<{
         orderId: string;
@@ -52,6 +54,12 @@ export function PricingCard({
                 assetId,
                 licenseType,
             });
+
+            if (result.isFree) {
+                // Free asset claimed without payment gateway
+                router.push(`/payment/verify?order_id=${result.orderId}`);
+                return;
+            }
 
             setOrderDetails(result);
             setShowCheckout(true);

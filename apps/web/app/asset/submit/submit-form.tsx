@@ -1,6 +1,5 @@
 "use client";
 
-import { useFormStatus } from "react-dom";
 import { useActionState } from "react";
 import { submitAsset, type FormState } from "./actions";
 import { useState } from "react";
@@ -9,20 +8,6 @@ const initialState: FormState = {
     error: {},
     message: null,
 };
-
-function SubmitButton() {
-    const { pending } = useFormStatus();
-
-    return (
-        <button
-            type="submit"
-            disabled={pending}
-            className="inline-flex justify-center rounded-lg bg-blue-600 px-10 py-4 text-base font-bold text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-            {pending ? "Submitting..." : "Submit for Review"}
-        </button>
-    );
-}
 
 const PLATFORM_FEE_PERCENTAGE = 0.16;
 const GST_ON_FEE_PERCENTAGE = 0.18;
@@ -43,17 +28,49 @@ function calculateEarnings(price: number) {
     };
 }
 
+const MAX_FILE_SIZE_MB = 4;
+const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+
 export default function SubmitAssetForm({ categories }: { categories: any[] }) {
     const [state, formAction] = useActionState(submitAsset, initialState);
     const [selectedImages, setSelectedImages] = useState<number>(0);
     const [usageLicensePrice, setUsageLicensePrice] = useState<string>("");
     const [sourceLicensePrice, setSourceLicensePrice] = useState<string>("");
     const [usageFeatures, setUsageFeatures] = useState<string[]>(["Deploy to production", "Unlimited end users", "Technical support", "Updates for 1 year"]);
-    const [sourceFeatures, setSourceFeatures] = useState<string[]>(["Full source code access", "Modify and customize", "White-label rights", "Lifetime updates", "Priority support"]);
+    const [sourceFeatures, setSourceFeatures] = useState<string[]>(["Full source code access", "Modify and customize", "Lifetime updates", "Priority support"]);
+    const [coverImageError, setCoverImageError] = useState<string | null>(null);
+    const [galleryImageError, setGalleryImageError] = useState<string | null>(null);
+    const [coverImageSelected, setCoverImageSelected] = useState<boolean>(false);
+    const [submitAttempted, setSubmitAttempted] = useState<boolean>(false);
+
+    const coverMissing = !coverImageSelected;
+    const galleryInsufficient = selectedImages < 2;
+    const hasImageErrors = !!coverImageError || !!galleryImageError || coverMissing || galleryInsufficient;
+
+    const handleCoverImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setCoverImageError(null);
+        const file = e.target.files?.[0];
+        if (file) {
+            setCoverImageSelected(true);
+            if (file.size > MAX_FILE_SIZE_BYTES) {
+                setCoverImageError(`Cover image is too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Maximum allowed size is ${MAX_FILE_SIZE_MB} MB.`);
+            }
+        } else {
+            setCoverImageSelected(false);
+        }
+    };
 
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setGalleryImageError(null);
         if (e.target.files) {
-            setSelectedImages(e.target.files.length);
+            const files = Array.from(e.target.files);
+            const oversized = files.filter(f => f.size > MAX_FILE_SIZE_BYTES);
+            if (oversized.length > 0) {
+                setGalleryImageError(
+                    `${oversized.length} file(s) exceed the ${MAX_FILE_SIZE_MB} MB limit: ${oversized.map(f => `${f.name} (${(f.size / 1024 / 1024).toFixed(1)} MB)`).join(", ")}. Please remove them and re-select.`
+                );
+            }
+            setSelectedImages(files.length);
         }
     };
 
@@ -85,7 +102,7 @@ export default function SubmitAssetForm({ categories }: { categories: any[] }) {
     };
 
     return (
-        <form action={formAction} className="space-y-8">
+        <form action={formAction} className="space-y-8" onSubmit={(e) => { setSubmitAttempted(true); if (hasImageErrors) e.preventDefault(); }}>
             {state?.error?._form && (
                 <div className="rounded-md bg-red-50 p-4">
                     <div className="flex">
@@ -200,9 +217,19 @@ export default function SubmitAssetForm({ categories }: { categories: any[] }) {
 
                 {/* Pricing & Tech */}
                 <div className="sm:col-span-1">
-                    <label htmlFor="usageLicensePrice" className="block text-sm font-semibold text-gray-900">
-                        Usage License Price (₹)
-                    </label>
+                    <div className="flex items-center gap-2">
+                        <label htmlFor="usageLicensePrice" className="block text-sm font-semibold text-gray-900">
+                            Usage License Price (₹)
+                        </label>
+                        <div className="relative group">
+                            <span className="flex items-center justify-center w-4 h-4 rounded-full bg-blue-100 text-blue-600 text-[10px] font-bold cursor-default select-none">i</span>
+                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 rounded-lg bg-gray-800 text-white text-xs p-3 shadow-xl opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none">
+                                <p className="font-semibold mb-1">🔒 Usage License</p>
+                                <p>Buyer can use your tool as-is. They get access to deploy and run it, technical support, and updates — but <strong>no access to the source code</strong>. They cannot modify, resell, or redistribute it.</p>
+                                <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-800"></div>
+                            </div>
+                        </div>
+                    </div>
                     <div className="mt-2 relative">
                         <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
                             <span className="text-gray-500">₹</span>
@@ -223,11 +250,11 @@ export default function SubmitAssetForm({ categories }: { categories: any[] }) {
                         const earnings = calculateEarnings(price);
                         if (earnings) {
                             return (
-                                <div className="mt-2 text-xs text-gray-600 bg-gray-50 p-2 rounded border border-gray-200">
-                                    <div className="flex justify-between"><span>Buyer Pays:</span> <span className="font-medium">₹{price.toFixed(2)}</span></div>
-                                    <div className="flex justify-between text-red-600"><span>Platform Fee (16%):</span> <span>-₹{earnings.platformFee.toFixed(2)}</span></div>
-                                    <div className="flex justify-between text-red-600"><span>GST on Fee (18%):</span> <span>-₹{earnings.gstOnFee.toFixed(2)}</span></div>
-                                    <div className="flex justify-between font-semibold border-t border-gray-300 mt-1 pt-1 text-green-700"><span>You Get:</span> <span>₹{earnings.builderEarnings.toFixed(2)}</span></div>
+                                <div className="mt-2 text-sm text-gray-700 bg-blue-50 p-3 rounded-lg border border-blue-100">
+                                    <div className="flex justify-between py-0.5"><span>Buyer Pays:</span> <span className="font-medium">₹{price.toFixed(2)}</span></div>
+                                    <div className="flex justify-between py-0.5 text-red-600"><span>Platform Fee (16%):</span> <span>−₹{earnings.platformFee.toFixed(2)}</span></div>
+                                    <div className="flex justify-between py-0.5 text-red-600"><span>GST on Fee (18%):</span> <span>−₹{earnings.gstOnFee.toFixed(2)}</span></div>
+                                    <div className="flex justify-between font-bold border-t border-blue-200 mt-2 pt-2 text-green-700 text-base"><span>You Get:</span> <span>₹{earnings.builderEarnings.toFixed(2)}</span></div>
                                 </div>
                             );
                         }
@@ -239,29 +266,39 @@ export default function SubmitAssetForm({ categories }: { categories: any[] }) {
 
                     {/* Usage Features */}
                     <div className="mt-4">
-                        <label className="block text-xs font-semibold text-gray-700 mb-2">Included Usage Features</label>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Included Usage Features</label>
                         <div className="space-y-2">
                             {usageFeatures.map((feature, index) => (
-                                <div key={`usage-${index}`} className="flex gap-2">
+                                <div key={`usage-${index}`} className="flex gap-2 items-center">
                                     <input
                                         type="text"
                                         value={feature}
                                         onChange={(e) => updateFeature('usage', index, e.target.value)}
-                                        className="block w-full rounded-md border-0 py-1.5 text-xs text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600"
-                                        placeholder="Feature"
+                                        className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                                        placeholder="e.g. Deploy to production"
                                     />
-                                    <button type="button" onClick={() => removeFeature('usage', index)} className="text-gray-400 hover:text-red-500">×</button>
+                                    <button type="button" onClick={() => removeFeature('usage', index)} className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full text-gray-400 hover:text-white hover:bg-red-500 transition-colors text-base font-bold">×</button>
                                 </div>
                             ))}
-                            <button type="button" onClick={() => addFeature('usage')} className="text-xs text-blue-600 hover:underline">+ Add Feature</button>
+                            <button type="button" onClick={() => addFeature('usage')} className="mt-1 inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline">+ Add Feature</button>
                         </div>
                     </div>
                 </div>
 
                 <div className="sm:col-span-1">
-                    <label htmlFor="sourceLicensePrice" className="block text-sm font-semibold text-gray-900">
-                        Source License Price (₹)
-                    </label>
+                    <div className="flex items-center gap-2">
+                        <label htmlFor="sourceLicensePrice" className="block text-sm font-semibold text-gray-900">
+                            Source License Price (₹)
+                        </label>
+                        <div className="relative group">
+                            <span className="flex items-center justify-center w-4 h-4 rounded-full bg-blue-100 text-blue-600 text-[10px] font-bold cursor-default select-none">i</span>
+                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 rounded-lg bg-gray-800 text-white text-xs p-3 shadow-xl opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none">
+                                <p className="font-semibold mb-1">📦 Source License</p>
+                                <p>Buyer gets the <strong>full source code</strong> and the right to modify and customize it. Leave blank if you don't want to sell source access.</p>
+                                <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-800"></div>
+                            </div>
+                        </div>
+                    </div>
                     <div className="mt-2 relative">
                         <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
                             <span className="text-gray-500">₹</span>
@@ -270,7 +307,7 @@ export default function SubmitAssetForm({ categories }: { categories: any[] }) {
                             type="text"
                             name="sourceLicensePrice" // This needs to be handled in action if not already
                             id="sourceLicensePrice"
-                            placeholder="Optional"
+                            placeholder="0.00"
                             value={sourceLicensePrice}
                             onChange={(e) => setSourceLicensePrice(e.target.value)}
                             className="block w-full rounded-lg border border-gray-300 pl-8 pr-4 py-3 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-blue-500"
@@ -281,11 +318,11 @@ export default function SubmitAssetForm({ categories }: { categories: any[] }) {
                         const earnings = calculateEarnings(price);
                         if (earnings) {
                             return (
-                                <div className="mt-2 text-xs text-gray-600 bg-gray-50 p-2 rounded border border-gray-200">
-                                    <div className="flex justify-between"><span>Buyer Pays:</span> <span className="font-medium">₹{price.toFixed(2)}</span></div>
-                                    <div className="flex justify-between text-red-600"><span>Platform Fee (16%):</span> <span>-₹{earnings.platformFee.toFixed(2)}</span></div>
-                                    <div className="flex justify-between text-red-600"><span>GST on Fee (18%):</span> <span>-₹{earnings.gstOnFee.toFixed(2)}</span></div>
-                                    <div className="flex justify-between font-semibold border-t border-gray-300 mt-1 pt-1 text-green-700"><span>You Get:</span> <span>₹{earnings.builderEarnings.toFixed(2)}</span></div>
+                                <div className="mt-2 text-sm text-gray-700 bg-blue-50 p-3 rounded-lg border border-blue-100">
+                                    <div className="flex justify-between py-0.5"><span>Buyer Pays:</span> <span className="font-medium">₹{price.toFixed(2)}</span></div>
+                                    <div className="flex justify-between py-0.5 text-red-600"><span>Platform Fee (16%):</span> <span>−₹{earnings.platformFee.toFixed(2)}</span></div>
+                                    <div className="flex justify-between py-0.5 text-red-600"><span>GST on Fee (18%):</span> <span>−₹{earnings.gstOnFee.toFixed(2)}</span></div>
+                                    <div className="flex justify-between font-bold border-t border-blue-200 mt-2 pt-2 text-green-700 text-base"><span>You Get:</span> <span>₹{earnings.builderEarnings.toFixed(2)}</span></div>
                                 </div>
                             );
                         }
@@ -294,21 +331,21 @@ export default function SubmitAssetForm({ categories }: { categories: any[] }) {
 
                     {/* Source Features */}
                     <div className="mt-4">
-                        <label className="block text-xs font-semibold text-gray-700 mb-2">Included Source Features</label>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Included Source Features</label>
                         <div className="space-y-2">
                             {sourceFeatures.map((feature, index) => (
-                                <div key={`source-${index}`} className="flex gap-2">
+                                <div key={`source-${index}`} className="flex gap-2 items-center">
                                     <input
                                         type="text"
                                         value={feature}
                                         onChange={(e) => updateFeature('source', index, e.target.value)}
-                                        className="block w-full rounded-md border-0 py-1.5 text-xs text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600"
-                                        placeholder="Feature"
+                                        className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                                        placeholder="e.g. Full source code access"
                                     />
-                                    <button type="button" onClick={() => removeFeature('source', index)} className="text-gray-400 hover:text-red-500">×</button>
+                                    <button type="button" onClick={() => removeFeature('source', index)} className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full text-gray-400 hover:text-white hover:bg-red-500 transition-colors text-base font-bold">×</button>
                                 </div>
                             ))}
-                            <button type="button" onClick={() => addFeature('source')} className="text-xs text-blue-600 hover:underline">+ Add Feature</button>
+                            <button type="button" onClick={() => addFeature('source')} className="mt-1 inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline">+ Add Feature</button>
                         </div>
                     </div>
                 </div>
@@ -362,10 +399,14 @@ export default function SubmitAssetForm({ categories }: { categories: any[] }) {
                             name="coverImage"
                             id="coverImage"
                             accept="image/*"
+                            onChange={handleCoverImageChange}
                             className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                         />
                     </div>
-                    <p className="mt-1 text-xs text-gray-500">This will be the main image displayed on cards and the top of the asset page.</p>
+                    <p className="mt-1 text-xs text-gray-500">Required. Main image shown on cards and the asset page. Max {MAX_FILE_SIZE_MB} MB.</p>
+                    {coverImageError && (
+                        <p className="mt-1 text-sm text-red-600">⚠️ {coverImageError}</p>
+                    )}
                 </div>
 
                 <div className="sm:col-span-2">
@@ -383,10 +424,13 @@ export default function SubmitAssetForm({ categories }: { categories: any[] }) {
                             className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                         />
                     </div>
-                    <p className="mt-1 text-xs text-gray-500">Upload additional screenshots or promotional images.</p>
-                    {selectedImages > 0 && (
-                        <p className="mt-2 text-sm text-green-600">
-                            {selectedImages} gallery file(s) selected
+                    <p className="mt-1 text-xs text-gray-500">Required — at least 2 screenshots or promotional images. Max {MAX_FILE_SIZE_MB} MB each.</p>
+                    {galleryImageError && (
+                        <p className="mt-1 text-sm text-red-600">⚠️ {galleryImageError}</p>
+                    )}
+                    {selectedImages > 0 && !galleryImageError && (
+                        <p className={`mt-2 text-sm font-medium ${selectedImages >= 2 ? 'text-green-600' : 'text-amber-600'}`}>
+                            {selectedImages} image{selectedImages !== 1 ? 's' : ''} selected{selectedImages < 2 ? ` — please add at least ${2 - selectedImages} more` : ' ✓'}
                         </p>
                     )}
                 </div>
@@ -430,8 +474,17 @@ export default function SubmitAssetForm({ categories }: { categories: any[] }) {
                 </div>
             </div>
 
-            <div className="flex items-center justify-end border-t border-gray-200 pt-8">
-                <SubmitButton />
+            <div className="flex items-center justify-end gap-4 border-t border-gray-200 pt-8">
+                {submitAttempted && hasImageErrors && (
+                    <p className="text-sm text-red-600">⚠️ Please fix image errors before submitting.</p>
+                )}
+                <button
+                    type="submit"
+                    disabled={hasImageErrors}
+                    className="inline-flex justify-center rounded-lg bg-blue-600 px-10 py-4 text-base font-bold text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    Submit for Review
+                </button>
             </div>
         </form>
     );

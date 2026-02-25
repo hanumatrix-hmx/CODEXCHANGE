@@ -13,6 +13,7 @@ const assetSchema = z.object({
     description: z.string().min(10, "Description must be at least 10 characters"),
     longDescription: z.string().optional(),
     usageLicensePrice: z.string().regex(/^\d+(\.\d{1,2})?$/, "Invalid price format"),
+    sourceLicensePrice: z.string().regex(/^\d+(\.\d{1,2})?$/, "Invalid price format").optional().or(z.literal("")).transform(val => (val === "" || val === undefined) ? null : val),
     techStack: z.string().optional(),
     maxLicenses: z.string().optional().transform(val => val ? parseInt(val, 10) : null),
     demoUrl: z.string().url("Invalid URL").optional().or(z.literal("")),
@@ -34,6 +35,7 @@ export type FormState = {
         categoryId?: string[];
         description?: string[];
         usageLicensePrice?: string[];
+        sourceLicensePrice?: string[];
         maxLicenses?: string[];
         demoUrl?: string[];
         githubUrl?: string[];
@@ -57,6 +59,7 @@ export async function submitAsset(_prevState: any, formData: FormData): Promise<
         description: formData.get("description") as string,
         longDescription: formData.get("longDescription") as string,
         usageLicensePrice: formData.get("usageLicensePrice") as string,
+        sourceLicensePrice: formData.get("sourceLicensePrice") as string,
         maxLicenses: formData.get("maxLicenses") as string,
         techStack: formData.get("techStack") as string,
         demoUrl: formData.get("demoUrl") as string,
@@ -89,18 +92,18 @@ export async function submitAsset(_prevState: any, formData: FormData): Promise<
             const fileName = `${user.id}/${rest.slug}/cover-${Date.now()}.${fileExt}`;
 
             const { error: uploadError } = await supabase.storage
-                .from("listing-image")
+                .from("listing-images")
                 .upload(fileName, coverImageFile);
 
             if (!uploadError) {
                 const { data: { publicUrl } } = supabase.storage
-                    .from("listing-image")
+                    .from("listing-images")
                     .getPublicUrl(fileName);
 
                 // Cover image is always sortOrder 0
                 uploadedImageUrls.push({ url: publicUrl, sortOrder: 0 });
             } else {
-                console.error("Error uploading cover image:", uploadError);
+                console.error("Error uploading cover image! File:", fileName, "Error:", uploadError);
             }
         }
 
@@ -111,16 +114,17 @@ export async function submitAsset(_prevState: any, formData: FormData): Promise<
             const fileName = `${user.id}/${rest.slug}/gallery-${Date.now()}-${i}.${fileExt}`;
 
             const { error: uploadError } = await supabase.storage
-                .from("listing-image")
+                .from("listing-images")
                 .upload(fileName, file);
 
             if (uploadError) {
                 console.error("Error uploading gallery image:", uploadError);
+                console.error("Failed File:", fileName);
                 continue;
             }
 
             const { data: { publicUrl } } = supabase.storage
-                .from("listing-image")
+                .from("listing-images")
                 .getPublicUrl(fileName);
 
             // Gallery images start from sortOrder 1
@@ -144,9 +148,10 @@ export async function submitAsset(_prevState: any, formData: FormData): Promise<
                     sortOrder: img.sortOrder,
                 }))
             );
+            console.log("Successfully inserted listingImages into database.");
         }
     } catch (error: any) {
-        console.error("Failed to submit asset:", error);
+        console.error("Failed to submit asset - General Catch Block Error:", error);
         if (error.code === "23505") { // Unique violation
             return {
                 error: { slug: ["Slug already exists. Please choose a different one."] },

@@ -54,8 +54,11 @@ export async function createOrder(
             paymentSessionId: response.data.payment_session_id || "",
             orderAmount: response.data.order_amount || orderAmount,
         };
-    } catch (error) {
+    } catch (error: any) {
         console.error("Error creating Cashfree order:", error);
+        if (error.response && error.response.data) {
+            console.error("Cashfree API Error Response:", JSON.stringify(error.response.data, null, 2));
+        }
         throw new Error(`Failed to create payment order: ${error instanceof Error ? error.message : "Unknown error"}`);
     }
 }
