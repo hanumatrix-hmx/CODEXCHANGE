@@ -5,23 +5,39 @@ import {
     getOrderByCashfreeId,
     getLicenseByOrderId,
 } from "@codexchange/db/src/payment-queries";
+import { verifyWebhookSignature } from "@codexchange/payment";
 import type { WebhookPayload } from "@codexchange/payment";
 
 export async function POST(request: NextRequest) {
+    // Read raw body FIRST — must happen before any JSON parsing
+    const payload = await request.text();
+
+    // --- Signature Verification ---
+    const signature = request.headers.get("x-webhook-signature") || "";
+    const timestamp = request.headers.get("x-webhook-timestamp") || "";
+
+    if (!signature || !timestamp) {
+        console.warn("Webhook rejected: missing x-webhook-signature or x-webhook-timestamp headers");
+        return NextResponse.json({ error: "Missing signature headers" }, { status: 401 });
+    }
+
+    // Reject if webhook is older than 5 minutes (replay attack prevention)
+    const FIVE_MINUTES_MS = 5 * 60 * 1000;
+    const webhookAgeMs = Date.now() - Number(timestamp) * 1000; // Cashfree timestamp is in seconds
+    if (webhookAgeMs > FIVE_MINUTES_MS || webhookAgeMs < 0) {
+        console.warn(`Webhook rejected: timestamp too old or in the future (age: ${webhookAgeMs}ms)`);
+        return NextResponse.json({ error: "Webhook timestamp expired" }, { status: 401 });
+    }
+
+    const isValid = verifyWebhookSignature(payload, signature, timestamp);
+    if (!isValid) {
+        console.warn("Webhook rejected: invalid signature");
+        return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+    }
+    // --- End Signature Verification ---
+
     try {
-        // Get webhook payload
-        const payload = await request.text();
         const webhookData: WebhookPayload = JSON.parse(payload);
-
-        // Get signature from headers for verification (optional but recommended)
-        // const _signature = request.headers.get("x-webhook-signature") || "";
-        // const _timestamp = request.headers.get("x-webhook-timestamp") || "";
-
-        // TODO: Verify webhook signature
-        // const isValid = verifyWebhookSignature(payload, signature, timestamp);
-        // if (!isValid) {
-        //     return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
-        // }
 
         // Extract order details
         const { order, payment } = webhookData.data;
@@ -42,7 +58,6 @@ export async function POST(request: NextRequest) {
 
         // Create license if payment successful and not already created
         if (paymentStatus === "SUCCESS") {
-            // Check if license already exists to prevent duplicates
             const existingLicense = await getLicenseByOrderId(dbOrder.id);
 
             if (!existingLicense) {
