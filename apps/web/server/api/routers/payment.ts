@@ -10,10 +10,11 @@ import {
     createLicense,
     getUserOrders,
     getOrderByCashfreeId,
+    getLicenseByOrderId,
 } from "@codexchange/db/src/payment-queries";
 import { db } from "@codexchange/db";
-import { assets } from "@codexchange/db";
-import { eq } from "drizzle-orm";
+import { assets, orders, licenses } from "@codexchange/db";
+import { eq, and } from "drizzle-orm";
 
 export const paymentRouter = createTRPCRouter({
     /**
@@ -54,6 +55,55 @@ export const paymentRouter = createTRPCRouter({
             }
 
             const amountTotal = parseFloat(priceStr);
+
+            // Handle free assets (0 amount) by bypassing Cashfree
+            if (amountTotal === 0) {
+                // Check if user already owns any license for this asset
+                const existingLicense = await db.query.licenses.findFirst({
+                    where: and(
+                        eq(licenses.buyerId, ctx.user.id),
+                        eq(licenses.assetId, input.assetId)
+                    ),
+                });
+
+                if (existingLicense) {
+                    throw new Error("You already own a license for this asset. Free assets can only be claimed once.");
+                }
+
+                // Create a completed order bypass
+                const orderId = `free_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+                const [order] = await db.insert(orders).values({
+                    assetId: input.assetId,
+                    buyerId: ctx.user.id,
+                    builderId: asset.builderId,
+                    amountBase: "0.00",
+                    amountPlatformFee: "0.00",
+                    amountGst: "0.00",
+                    amountTcs: "0.00",
+                    amountTotal: "0.00",
+                    licenseType: input.licenseType,
+                    cashfreeOrderId: orderId,
+                    paymentSessionId: "free_session_bypass",
+                    status: "paid",
+                    currency: "INR",
+                }).returning();
+
+                // Claim the license automatically
+                await createLicense({
+                    assetId: input.assetId,
+                    buyerId: ctx.user.id,
+                    orderId: order.id,
+                    licenseType: input.licenseType,
+                });
+
+                return {
+                    orderId,
+                    paymentSessionId: "free_session_bypass",
+                    orderAmount: 0,
+                    isFree: true,
+                };
+            }
+
             const amountBase = amountTotal;
             const amountPlatformFee = amountBase * 0.16;
             const amountGst = amountPlatformFee * 0.18;
@@ -116,6 +166,16 @@ export const paymentRouter = createTRPCRouter({
             // Verify the user owns this order
             if (order.buyerId !== ctx.user.id) {
                 throw new Error("Unauthorized");
+            }
+
+            // If this is a free order that was already provisioned locally, return success directly
+            if (order.status === "paid" && parseFloat(order.amountTotal) === 0) {
+                const license = await getLicenseByOrderId(order.id);
+                return {
+                    status: "SUCCESS",
+                    order,
+                    license,
+                };
             }
 
             // Verify payment with Cashfree
