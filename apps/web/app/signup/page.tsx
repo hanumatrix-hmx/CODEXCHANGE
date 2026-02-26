@@ -19,8 +19,6 @@ export default async function SignupPage({
         const headersList = await headers();
         const origin = headersList.get("origin") || process.env.NEXT_PUBLIC_APP_URL!;
 
-        console.log("Attempting sign up for:", email);
-        console.log("Origin:", origin);
 
         const { error } = await supabase.auth.signInWithOtp({
             email,

@@ -68,7 +68,6 @@ export async function POST(request: NextRequest) {
                     licenseType: dbOrder.licenseType as "usage" | "source",
                 });
 
-                console.log(`License created for order: ${cashfreeOrderId}`);
             }
         }
 

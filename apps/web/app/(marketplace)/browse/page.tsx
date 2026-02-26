@@ -95,7 +95,7 @@ export default async function BrowsePage({
                         </div>
                         <h3 className="text-lg font-medium text-gray-900">No assets found</h3>
                         <p className="mt-1 text-sm text-gray-500">
-                            We couldn't find any assets matching your criteria.
+                            We couldn&apos;t find any assets matching your criteria.
                         </p>
                     </div>
                 )}

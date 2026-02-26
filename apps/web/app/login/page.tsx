@@ -19,8 +19,6 @@ export default async function LoginPage({
         const headersList = await headers();
         const origin = headersList.get("origin") || process.env.NEXT_PUBLIC_APP_URL!;
 
-        console.log("Attempting sign in for:", email);
-        console.log("Origin:", origin);
 
         const { error } = await supabase.auth.signInWithOtp({
             email,
@@ -183,10 +181,6 @@ export default async function LoginPage({
                                         name="password"
                                         type="password"
                                         autoComplete="current-password"
-                                        // Password is not required for Magic Link flow, but we might want to make it feel optional visually if empty
-                                        // However, unified form suggests standard login.
-                                        // If user clicks "Magic Link", form submits even if password empty? Yes if not 'required'.
-                                        // Let's remove 'required' from password to allow Magic Link submission without it.
                                         className="relative block w-full appearance-none rounded-b-md border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-500 focus:z-10 focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
                                         placeholder="Password (optional for Magic Link)"
                                     />

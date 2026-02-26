@@ -1,15 +1,17 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { api } from "@/utils/trpc/client";
 import { notFound, useParams } from "next/navigation";
 import { Eye, ShieldCheck, ExternalLink, Github, Globe, ArrowLeft } from "lucide-react";
 import Link from "next/link";
-import { ZoomImage } from "@/components/ui/zoom-image";
 import { QualityBadge } from "@/components/quality-badge";
 import { PricingCard } from "@/components/pricing-card";
 import { AssetCard } from "@/components/asset-card";
 import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
 import { useEffect } from "react";
+
+const ZoomImage = dynamic(() => import("@/components/ui/zoom-image").then(m => m.ZoomImage), { ssr: false });
 
 export default function AssetPage() {
     const params = useParams();
@@ -37,6 +39,7 @@ export default function AssetPage() {
         if (asset?.id) {
             incrementViews.mutate({ assetId: asset.id });
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [asset?.id]);
 
 

@@ -5,7 +5,6 @@ import { getUserLicenses } from "@codexchange/db/src/queries";
 export const licenseRouter = createTRPCRouter({
     /**
      * Get user's licenses
-     * TODO: Add auth check to ensure user can only see their own licenses
      */
     getUserLicenses: publicProcedure
         .input(z.object({ userId: z.string() }))
@@ -15,7 +14,6 @@ export const licenseRouter = createTRPCRouter({
 
     /**
      * Generate download URL for a license
-     * TODO: Implement S3 pre-signed URL generation
      */
     generateDownloadUrl: publicProcedure
         .input(z.object({ licenseId: z.string() }))

@@ -3,6 +3,15 @@
     "globalDependencies": [
         "**/.env.*local"
     ],
+    "globalEnv": [
+        "NODE_ENV",
+        "DATABASE_URL",
+        "DIRECT_URL",
+        "CASHFREE_ENVIRONMENT",
+        "CASHFREE_APP_ID",
+        "CASHFREE_SECRET_KEY",
+        "CASHFREE_WEBHOOK_URL"
+    ],
     "tasks": {
         "build": {
             "dependsOn": [
