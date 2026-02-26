@@ -13,7 +13,7 @@ export default async function SubmitAssetPage() {
         redirect("/login?message=You must be logged in to submit an asset.");
     }
 
-    const allCategories = await db.select().from(categories);
+    const allCategories = await db.select().from(categories).orderBy(categories.name);
 
     return (
         <MarketplaceLayout>
