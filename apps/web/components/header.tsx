@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { keepPreviousData } from "@tanstack/react-query";
 import { LogOut, User } from "lucide-react";
 import { Button } from "./ui/button";
@@ -10,7 +11,7 @@ import { api } from "@/utils/trpc/client";
 
 export function Header() {
     const utils = api.useUtils();
-
+    const pathname = usePathname();
 
     // Fetch user from database via tRPC
     // - placeholderData keeps previous user visible during background refetches (no blank flash)
@@ -21,23 +22,52 @@ export function Header() {
         refetchOnWindowFocus: true,
     });
 
-    // Invalidate user query only when Supabase auth state actually changes (login, logout, token refresh)
+    // Effect 1: runs on every navigation (pathname change).
+    // Calls getSession() to pick up server-side logins — when login happens via a
+    // Server Action, the browser Supabase client never fires SIGNED_IN, so
+    // onAuthStateChange alone won't help. Reading the cookie here catches it.
     useEffect(() => {
         const supabase = createClient();
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
-            utils.user.getCurrentUser.invalidate();
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            if (session?.user) {
+                utils.user.getCurrentUser.setData(undefined, {
+                    id: session.user.id,
+                    email: session.user.email ?? "",
+                    fullName: session.user.user_metadata?.full_name ?? null,
+                    role: "buyer", // temporary — corrected by background invalidate
+                });
+                utils.user.getCurrentUser.invalidate();
+            }
+        });
+    }, [pathname, utils]);
+
+    // Effect 2: stable subscription for client-side auth events (SIGNED_IN / SIGNED_OUT).
+    // Registered once — no need to re-subscribe on every navigation.
+    useEffect(() => {
+        const supabase = createClient();
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+            if ((event === "SIGNED_IN" || event === "INITIAL_SESSION") && session?.user) {
+                utils.user.getCurrentUser.setData(undefined, {
+                    id: session.user.id,
+                    email: session.user.email ?? "",
+                    fullName: session.user.user_metadata?.full_name ?? null,
+                    role: "buyer",
+                });
+                utils.user.getCurrentUser.invalidate();
+            } else if (event === "SIGNED_OUT") {
+                utils.user.getCurrentUser.setData(undefined, null);
+            }
         });
         return () => subscription.unsubscribe();
     }, [utils]);
 
     const handleLogout = async () => {
         const supabase = createClient();
-        await supabase.auth.signOut();
-
-        // Invalidate all queries to clear cache
-        await utils.invalidate();
-
-        // Force a hard navigation to clear all state
+        // Clear header immediately — don't wait for the network signOut call
+        utils.user.getCurrentUser.setData(undefined, null);
+        // Fire signOut without awaiting — session is cleared from local storage
+        // synchronously by Supabase before the server request completes
+        supabase.auth.signOut();
         window.location.href = "/login";
     };
 
