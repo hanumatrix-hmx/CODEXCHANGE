@@ -109,8 +109,11 @@ export const paymentRouter = createTRPCRouter({
             const amountGst = amountPlatformFee * 0.18;
             const amountTcs = amountBase * 0.01;
 
-            // Create Cashfree order
-            const returnUrl = `${process.env.NEXT_PUBLIC_APP_URL}/payment/verify?order_id={order_id}`;
+            // Use the request's origin so Cashfree redirects back to the SAME deployment
+            // the user is on. Hardcoding NEXT_PUBLIC_APP_URL breaks preview deployments
+            // where the domain differs from the env var value.
+            const origin = ctx.headers.get("origin") ?? process.env.NEXT_PUBLIC_APP_URL ?? "";
+            const returnUrl = `${origin}/payment/verify?order_id={order_id}`;
 
             const orderResponse = await createCashfreeOrder(
                 {
