@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { createTRPCRouter, protectedProcedure } from "../trpc";
+import { createTRPCRouter, protectedProcedure, publicProcedure } from "../trpc";
 import {
     createOrder as createCashfreeOrder,
     verifyPayment as verifyCashfreePayment,
@@ -109,8 +109,11 @@ export const paymentRouter = createTRPCRouter({
             const amountGst = amountPlatformFee * 0.18;
             const amountTcs = amountBase * 0.01;
 
-            // Create Cashfree order
-            const returnUrl = `${process.env.NEXT_PUBLIC_APP_URL}/payment/verify?order_id={order_id}`;
+            // Use the request's origin so Cashfree redirects back to the SAME deployment
+            // the user is on. Hardcoding NEXT_PUBLIC_APP_URL breaks preview deployments
+            // where the domain differs from the env var value.
+            const origin = ctx.headers.get("origin") ?? process.env.NEXT_PUBLIC_APP_URL ?? "";
+            const returnUrl = `${origin}/payment/verify?order_id={order_id}`;
 
             const orderResponse = await createCashfreeOrder(
                 {
@@ -147,25 +150,20 @@ export const paymentRouter = createTRPCRouter({
         }),
 
     /**
-     * Verify payment status and create license if successful
+     * Verify payment status and create license if successful.
+     * Public: session may have expired during the Cashfree redirect — that's OK.
+     * Security comes from Cashfree API confirming the payment, not caller identity.
+     * The license is always created for the buyer stored in the original order record.
      */
-    verifyPayment: protectedProcedure
+    verifyPayment: publicProcedure
         .input(z.object({ orderId: z.string() }))
-        .mutation(async ({ input, ctx }) => {
-            if (!ctx.user) {
-                throw new Error("User not authenticated");
-            }
+        .mutation(async ({ input }) => {
 
             // Get order from database
             const order = await getOrderByCashfreeId(input.orderId);
 
             if (!order) {
                 throw new Error("Order not found");
-            }
-
-            // Verify the user owns this order
-            if (order.buyerId !== ctx.user.id) {
-                throw new Error("Unauthorized");
             }
 
             // If this is a free order that was already provisioned locally, return success directly

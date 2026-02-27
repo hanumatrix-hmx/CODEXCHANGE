@@ -22,6 +22,12 @@ export function TRPCReactProvider(props: { children: React.ReactNode }) {
                 httpBatchLink({
                     transformer: superjson,
                     url: getBaseUrl() + "/api/trpc",
+                    fetch(url, options) {
+                        return fetch(url, {
+                            ...options,
+                            credentials: "include", // Essential for sending Supabase auth cookies
+                        });
+                    },
                     headers: () => {
                         const headers = new Headers();
                         headers.set("x-trpc-source", "nextjs-react");
