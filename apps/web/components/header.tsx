@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect } from "react";
+import { keepPreviousData } from "@tanstack/react-query";
 import { LogOut, User } from "lucide-react";
 import { Button } from "./ui/button";
 import { createClient } from "@/utils/supabase/client";
@@ -9,8 +11,24 @@ import { api } from "@/utils/trpc/client";
 export function Header() {
     const utils = api.useUtils();
 
+
     // Fetch user from database via tRPC
-    const { data: user, isLoading } = api.user.getCurrentUser.useQuery();
+    // - placeholderData keeps previous user visible during background refetches (no blank flash)
+    // - staleTime: 5 min avoids redundant calls; refetchOnWindowFocus keeps session fresh
+    const { data: user, isLoading } = api.user.getCurrentUser.useQuery(undefined, {
+        placeholderData: keepPreviousData,
+        staleTime: 5 * 60 * 1000,
+        refetchOnWindowFocus: true,
+    });
+
+    // Invalidate user query only when Supabase auth state actually changes (login, logout, token refresh)
+    useEffect(() => {
+        const supabase = createClient();
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
+            utils.user.getCurrentUser.invalidate();
+        });
+        return () => subscription.unsubscribe();
+    }, [utils]);
 
     const handleLogout = async () => {
         const supabase = createClient();
