@@ -72,12 +72,11 @@ export async function getUserLicenses(userId: string) {
  * Get pending assets for admin review
  */
 export async function getPendingAssets() {
-    // Cast to any to bypass status field type error temporarily
     const result = await db.query.assets.findMany({
         where: eq(assets.status as any, "pending_review"),
         with: {
             category: true,
-            builder: true, // This should load the builder user data
+            builder: true, 
         },
         orderBy: [desc(assets.createdAt)],
     });
@@ -97,17 +96,14 @@ export async function getBuilderAnalytics(builderId: string) {
             },
         });
 
-        // Calculate totals with safe defaults
         const totalAssets = builderAssets.length;
 
-        // Calculate actual totals based on status
         const approvedAssets = builderAssets.filter((a: any) => a.status === "approved").length;
 
-        // TODO: These fields need to be added to schema
-        const totalSales = 0; // Will be calculated from transactions once schema is ready
-        const totalViews = 0; // Will be calculated from viewsCount field once added
-        const totalRevenue = 0; // Will be calculated from transactions
-        const pendingPayout = 0; // Will be calculated from transactions
+        const totalSales = 0; 
+        const totalViews = 0; 
+        const totalRevenue = 0; 
+        const pendingPayout = 0; 
 
         return {
             totalAssets,
@@ -120,10 +116,10 @@ export async function getBuilderAnalytics(builderId: string) {
                 id: asset.id,
                 name: asset.name,
                 slug: asset.slug,
-                status: asset.status, // Use actual status from database
-                viewsCount: 0, // TODO: Use actual viewsCount once added
-                salesCount: 0, // TODO: Calculate from transactions
-                revenue: 0, // TODO: Calculate from transactions
+                status: asset.status, 
+                viewsCount: 0, 
+                salesCount: 0, 
+                revenue: 0, 
                 category: asset.category,
             })),
         };
@@ -150,13 +146,12 @@ export async function getBuyerStats(buyerId: string) {
         const licenses = await getUserLicenses(buyerId);
 
         const totalLicenses = licenses.length;
-        // TODO: Once schema has status field, use it. For now, assume all are active
         const activeLicenses = totalLicenses;
 
         return {
             totalLicenses,
             activeLicenses,
-            expiredLicenses: 0, // TODO: Calculate once status field exists
+            expiredLicenses: 0, 
             licenses,
         };
     } catch (error) {

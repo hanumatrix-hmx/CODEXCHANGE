@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { CheckCircle, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { api } from "@/utils/trpc/client";
 
-export default function PaymentVerifyPage() {
+function PaymentVerifyContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
     const orderId = searchParams.get("order_id");
@@ -22,7 +22,6 @@ export default function PaymentVerifyPage() {
             return;
         }
 
-        // Verify payment
         verifyPayment.mutate(
             { orderId },
             {
@@ -39,6 +38,7 @@ export default function PaymentVerifyPage() {
                 },
             }
         );
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [orderId]);
 
     if (verificationStatus === "loading") {
@@ -97,7 +97,7 @@ export default function PaymentVerifyPage() {
                 </div>
                 <h1 className="mt-4 text-3xl font-bold text-gray-900">Payment Failed</h1>
                 <p className="mt-2 text-gray-600">
-                    We couldn't process your payment. Please try again.
+                    We couldn&apos;t process your payment. Please try again.
                 </p>
 
                 <div className="mt-8 space-y-3">
@@ -114,5 +114,24 @@ export default function PaymentVerifyPage() {
                 </div>
             </div>
         </div>
+    );
+}
+
+function LoadingFallback() {
+    return (
+        <div className="flex min-h-screen items-center justify-center">
+            <div className="text-center">
+                <Loader2 className="mx-auto h-12 w-12 animate-spin text-blue-600" />
+                <p className="mt-4 text-gray-600">Loading...</p>
+            </div>
+        </div>
+    );
+}
+
+export default function PaymentVerifyPage() {
+    return (
+        <Suspense fallback={<LoadingFallback />}>
+            <PaymentVerifyContent />
+        </Suspense>
     );
 }

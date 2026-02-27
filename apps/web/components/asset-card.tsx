@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { BadgeCheck, Eye } from "lucide-react";
 import { formatPrice } from "@/utils/format";
 
@@ -27,9 +28,12 @@ export function AssetCard({ asset }: { asset: Asset }) {
         <Link href={`/asset/${asset.slug}`} className="group block h-full">
             <div className="h-full overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm transition-all hover:border-blue-500 hover:shadow-md">
                 <div className="aspect-h-9 aspect-w-16 bg-gray-200">
-                    <img
+                    <Image
                         src={imageUrl}
                         alt={asset.name}
+                        width={600}
+                        height={400}
+                        unoptimized
                         className="h-48 w-full object-cover transition-transform duration-300 group-hover:scale-105"
                     />
                 </div>

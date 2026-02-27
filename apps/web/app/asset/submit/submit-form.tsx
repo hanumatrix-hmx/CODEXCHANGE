@@ -294,7 +294,7 @@ export default function SubmitAssetForm({ categories }: { categories: any[] }) {
                             <span className="flex items-center justify-center w-4 h-4 rounded-full bg-blue-100 text-blue-600 text-[10px] font-bold cursor-default select-none">i</span>
                             <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 rounded-lg bg-gray-800 text-white text-xs p-3 shadow-xl opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none">
                                 <p className="font-semibold mb-1">📦 Source License</p>
-                                <p>Buyer gets the <strong>full source code</strong> and the right to modify and customize it. Leave blank if you don't want to sell source access.</p>
+                                <p>Buyer gets the <strong>full source code</strong> and the right to modify and customize it. Leave blank if you don&apos;t want to sell source access.</p>
                                 <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-800"></div>
                             </div>
                         </div>
@@ -305,7 +305,7 @@ export default function SubmitAssetForm({ categories }: { categories: any[] }) {
                         </div>
                         <input
                             type="text"
-                            name="sourceLicensePrice" // This needs to be handled in action if not already
+                            name="sourceLicensePrice"
                             id="sourceLicensePrice"
                             placeholder="0.00"
                             value={sourceLicensePrice}

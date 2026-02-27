@@ -148,7 +148,6 @@ export async function submitAsset(_prevState: any, formData: FormData): Promise<
                     sortOrder: img.sortOrder,
                 }))
             );
-            console.log("Successfully inserted listingImages into database.");
         }
     } catch (error: any) {
         console.error("Failed to submit asset - General Catch Block Error:", error);

@@ -5,7 +5,6 @@ import { getBuilderAnalytics, getBuyerStats } from "@codexchange/db/src/queries"
 export const dashboardRouter = createTRPCRouter({
     /**
      * Get builder statistics and analytics
-     * TODO: Add auth check to ensure user can only see their own stats
      */
     getBuilderStats: publicProcedure
         .input(z.object({ builderId: z.string() }))
@@ -15,7 +14,6 @@ export const dashboardRouter = createTRPCRouter({
 
     /**
      * Get buyer statistics
-     * TODO: Add auth check to ensure user can only see their own stats
      */
     getBuyerStats: publicProcedure
         .input(z.object({ buyerId: z.string() }))

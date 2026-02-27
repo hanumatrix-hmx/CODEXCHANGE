@@ -23,7 +23,7 @@ export default async function OnboardingPage() {
                     Welcome to CODEXCHANGE
                 </h1>
                 <p className="mt-4 text-xl text-gray-600">
-                    Let's get your account set up.
+                    Let&apos;s get your account set up.
                 </p>
 
                 <OnboardingForm
