@@ -21,11 +21,15 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "Missing signature headers" }, { status: 401 });
     }
 
-    // Reject if webhook is older than 5 minutes (replay attack prevention)
-    const FIVE_MINUTES_MS = 5 * 60 * 1000;
-    const webhookAgeMs = Date.now() - Number(timestamp) * 1000; // Cashfree timestamp is in seconds
-    if (webhookAgeMs > FIVE_MINUTES_MS || webhookAgeMs < 0) {
-        console.warn(`Webhook rejected: timestamp too old or in the future (age: ${webhookAgeMs}ms)`);
+    // Replay attack prevention — auto-detect timestamp unit (Cashfree sends milliseconds,
+    // but guard against seconds format too). Values >= 1e12 are already in ms.
+    const tsRaw = Number(timestamp);
+    const timestampMs = tsRaw >= 1e12 ? tsRaw : tsRaw * 1000;
+    const webhookAgeMs = Date.now() - timestampMs;
+    const TEN_MINUTES_MS = 10 * 60 * 1000;
+    const CLOCK_SKEW_MS = 60 * 1000; // allow 60s future slack for Vercel/Cashfree clock drift
+    if (webhookAgeMs > TEN_MINUTES_MS || webhookAgeMs < -CLOCK_SKEW_MS) {
+        console.warn(`Webhook rejected: timestamp too old or in the future (age: ${webhookAgeMs}ms, raw: ${timestamp})`);
         return NextResponse.json({ error: "Webhook timestamp expired" }, { status: 401 });
     }
 
