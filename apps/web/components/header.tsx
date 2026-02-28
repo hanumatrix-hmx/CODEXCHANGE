@@ -166,6 +166,7 @@ export function Header() {
                             <span className="text-indigo-600 dark:text-indigo-400">◆</span>
                             CodeExchange
                         </Link>
+                        <div className="h-8 w-32 animate-pulse rounded-lg bg-white/8" />
                         <div className="h-8 w-32 animate-pulse bg-gray-200 dark:bg-gray-800 rounded-full"></div>
                     </div>
                 </div>
