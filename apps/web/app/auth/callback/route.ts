@@ -7,6 +7,14 @@ export async function GET(request: NextRequest) {
     const code = searchParams.get("code");
     const next = searchParams.get("next") ?? "/onboarding";
 
+    const forwardedHost = request.headers.get("x-forwarded-host") || request.headers.get("host");
+    const isLocalEnv = process.env.NODE_ENV === "development";
+
+    let redirectOrigin = origin;
+    if (!isLocalEnv && forwardedHost) {
+        redirectOrigin = `https://${forwardedHost}`;
+    }
+
     if (code) {
         const supabase = await createClient();
         const { error } = await supabase.auth.exchangeCodeForSession(code);
@@ -24,21 +32,13 @@ export async function GET(request: NextRequest) {
 
                 // Redirect admin users directly to admin page ONLY if profile is complete
                 if (profile?.role === "admin" && profile.full_name) {
-                    return NextResponse.redirect(`${origin}/admin`);
+                    return NextResponse.redirect(`${redirectOrigin}/admin`);
                 }
             }
 
-            const forwardedHost = request.headers.get("x-forwarded-host");
-            const isLocalEnv = process.env.NODE_ENV === "development";
-            if (isLocalEnv) {
-                return NextResponse.redirect(`${origin}${next}`);
-            } else if (forwardedHost) {
-                return NextResponse.redirect(`https://${forwardedHost}${next}`);
-            } else {
-                return NextResponse.redirect(`${origin}${next}`);
-            }
+            return NextResponse.redirect(`${redirectOrigin}${next}`);
         }
     }
 
-    return NextResponse.redirect(`${origin}/auth/auth-code-error`);
+    return NextResponse.redirect(`${redirectOrigin}/auth/auth-code-error`);
 }

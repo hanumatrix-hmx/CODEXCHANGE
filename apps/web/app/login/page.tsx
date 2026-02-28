@@ -1,7 +1,6 @@
 import { createClient } from "@/utils/supabase/server";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
 
 export default async function LoginPage({
     searchParams,
@@ -16,9 +15,8 @@ export default async function LoginPage({
 
         const email = formData.get("email") as string;
         const supabase = await createClient();
-        const headersList = await headers();
-        const origin = headersList.get("origin") || process.env.NEXT_PUBLIC_APP_URL!;
 
+        const origin = process.env.NEXT_PUBLIC_APP_URL!;
 
         const { error } = await supabase.auth.signInWithOtp({
             email,
@@ -62,8 +60,8 @@ export default async function LoginPage({
     const signInWithGoogle = async () => {
         "use server";
         const supabase = await createClient();
-        const headersList = await headers();
-        const origin = headersList.get("origin") || process.env.NEXT_PUBLIC_APP_URL!;
+
+        const origin = process.env.NEXT_PUBLIC_APP_URL!;
 
         const { data, error } = await supabase.auth.signInWithOAuth({
             provider: "google",
@@ -85,8 +83,8 @@ export default async function LoginPage({
     const signInWithGithub = async () => {
         "use server";
         const supabase = await createClient();
-        const headersList = await headers();
-        const origin = headersList.get("origin") || process.env.NEXT_PUBLIC_APP_URL!;
+
+        const origin = process.env.NEXT_PUBLIC_APP_URL!;
 
         const { data, error } = await supabase.auth.signInWithOAuth({
             provider: "github",

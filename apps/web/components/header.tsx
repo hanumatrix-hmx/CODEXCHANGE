@@ -52,7 +52,7 @@ export function Header() {
     });
 
     const { data: searchResults, isFetching: isSearching } = api.asset.search.useQuery(
-        { q: debouncedQuery },
+        { query: debouncedQuery },
         {
             enabled: debouncedQuery.length >= 2,
             staleTime: 60 * 1000,
@@ -259,9 +259,9 @@ export function Header() {
                                 <div className="absolute top-12 right-0 w-72 sm:w-80 bg-white dark:bg-gray-900 rounded-xl shadow-xl border border-gray-200 dark:border-gray-800 overflow-hidden z-50">
                                     {isSearching ? (
                                         <div className="p-4 text-center text-sm text-gray-500">Searching...</div>
-                                    ) : searchResults && searchResults.length > 0 ? (
+                                    ) : searchResults && searchResults.assets.length > 0 ? (
                                         <div className="py-2">
-                                            {searchResults.map((asset) => (
+                                            {searchResults.assets.map((asset) => (
                                                 <Link
                                                     key={asset.id}
                                                     href={`/asset/${asset.slug}`}
@@ -272,7 +272,7 @@ export function Header() {
                                                         {asset.name}
                                                     </div>
                                                     <div className="text-xs text-gray-500 dark:text-gray-400">
-                                                        {asset.categoryName}
+                                                        {asset.category?.name || "Uncategorized"}
                                                     </div>
                                                 </Link>
                                             ))}

@@ -13,10 +13,27 @@ export const assetRouter = createTRPCRouter({
      * Search assets
      */
     search: publicProcedure
-        .input(z.object({ q: z.string() }))
+        .input(
+            z.object({
+                query: z.string().min(1),
+                categoryId: z.string().uuid().optional(),
+                minPrice: z.number().optional(),
+                maxPrice: z.number().optional(),
+                sort: z
+                    .enum([
+                        "relevance",
+                        "newest",
+                        "price_asc",
+                        "price_desc",
+                        "popular",
+                    ])
+                    .default("relevance"),
+                limit: z.number().min(1).max(100).default(20),
+                offset: z.number().min(0).default(0),
+            })
+        )
         .query(async ({ input }) => {
-            if (input.q.length < 2) return [];
-            return await searchAssets(input.q);
+            return await searchAssets(input);
         }),
 
     /**
