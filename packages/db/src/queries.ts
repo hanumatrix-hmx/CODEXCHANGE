@@ -1,6 +1,6 @@
 import { db } from "./index";
-import { assets, licenses, reviews as reviewsTable } from "./schema";
-import { eq, and, desc, sql } from "drizzle-orm";
+import { assets, licenses, reviews as reviewsTable, categories } from "./schema";
+import { eq, and, desc, sql, ilike, or, count } from "drizzle-orm";
 
 /**
  * Get asset by slug with all relations
@@ -76,7 +76,7 @@ export async function getPendingAssets() {
         where: eq(assets.status as any, "pending_review"),
         with: {
             category: true,
-            builder: true, 
+            builder: true,
         },
         orderBy: [desc(assets.createdAt)],
     });
@@ -100,10 +100,10 @@ export async function getBuilderAnalytics(builderId: string) {
 
         const approvedAssets = builderAssets.filter((a: any) => a.status === "approved").length;
 
-        const totalSales = 0; 
-        const totalViews = 0; 
-        const totalRevenue = 0; 
-        const pendingPayout = 0; 
+        const totalSales = 0;
+        const totalViews = 0;
+        const totalRevenue = 0;
+        const pendingPayout = 0;
 
         return {
             totalAssets,
@@ -116,10 +116,10 @@ export async function getBuilderAnalytics(builderId: string) {
                 id: asset.id,
                 name: asset.name,
                 slug: asset.slug,
-                status: asset.status, 
-                viewsCount: 0, 
-                salesCount: 0, 
-                revenue: 0, 
+                status: asset.status,
+                viewsCount: 0,
+                salesCount: 0,
+                revenue: 0,
                 category: asset.category,
             })),
         };
@@ -151,7 +151,7 @@ export async function getBuyerStats(buyerId: string) {
         return {
             totalLicenses,
             activeLicenses,
-            expiredLicenses: 0, 
+            expiredLicenses: 0,
             licenses,
         };
     } catch (error) {
@@ -175,4 +175,57 @@ export async function incrementAssetViews(assetId: string) {
             viewsCount: sql`${assets.viewsCount} + 1`,
         })
         .where(eq(assets.id, assetId));
+}
+
+/**
+ * Search approved assets
+ */
+export async function searchAssets(query: string, limit = 5) {
+    const results = await db
+        .select({
+            id: assets.id,
+            name: assets.name,
+            slug: assets.slug,
+            categoryName: categories.name,
+        })
+        .from(assets)
+        .leftJoin(categories, eq(assets.categoryId, categories.id))
+        .where(
+            and(
+                eq(assets.status, "approved"),
+                or(
+                    ilike(assets.name, `%${query}%`),
+                    ilike(assets.description, `%${query}%`)
+                )
+            )
+        )
+        .limit(limit);
+
+    return results;
+}
+
+/**
+ * Get all categories with approved asset counts
+ */
+export async function getAllCategoriesWithCount() {
+    const results = await db
+        .select({
+            id: categories.id,
+            name: categories.name,
+            slug: categories.slug,
+            description: categories.description,
+            assetCount: count(assets.id),
+        })
+        .from(categories)
+        .leftJoin(
+            assets,
+            and(
+                eq(categories.id, assets.categoryId),
+                eq(assets.status, "approved")
+            )
+        )
+        .groupBy(categories.id, categories.name, categories.slug, categories.description)
+        .orderBy(categories.name);
+
+    return results;
 }

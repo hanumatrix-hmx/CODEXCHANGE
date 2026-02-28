@@ -3,8 +3,10 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
     transpilePackages: ["@codexchange/db"],
     reactStrictMode: true,
-    serverActions: {
-        bodySizeLimit: "4mb",
+    experimental: {
+        serverActions: {
+            bodySizeLimit: "4mb",
+        },
     },
     images: {
         remotePatterns: [

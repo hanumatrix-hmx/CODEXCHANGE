@@ -4,10 +4,21 @@ import {
     getAssetBySlug,
     getRelatedAssets,
     incrementAssetViews,
+    searchAssets,
 } from "@codexchange/db/src/queries";
 import { cookies } from "next/headers";
 
 export const assetRouter = createTRPCRouter({
+    /**
+     * Search assets
+     */
+    search: publicProcedure
+        .input(z.object({ q: z.string() }))
+        .query(async ({ input }) => {
+            if (input.q.length < 2) return [];
+            return await searchAssets(input.q);
+        }),
+
     /**
      * Get asset by slug with all relations
      */
