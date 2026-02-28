@@ -1,5 +1,6 @@
 import { createTRPCRouter, publicProcedure } from "./trpc";
 import { z } from "zod";
+import { categoryRouter } from "./routers/category";
 import { assetRouter } from "./routers/asset";
 import { licenseRouter } from "./routers/license";
 import { dashboardRouter } from "./routers/dashboard";
@@ -18,6 +19,7 @@ export const appRouter = createTRPCRouter({
         }),
 
     // Feature routers
+    category: categoryRouter,
     asset: assetRouter,
     license: licenseRouter,
     dashboard: dashboardRouter,
