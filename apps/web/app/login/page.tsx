@@ -29,7 +29,7 @@ export default async function LoginPage({
             email,
             options: {
                 shouldCreateUser: true,
-                emailRedirectTo: `${origin}/auth/callback`,
+                emailRedirectTo: `${origin}/auth/callback?next=/onboarding`,
             },
         });
 
@@ -79,7 +79,7 @@ export default async function LoginPage({
         const { data, error } = await supabase.auth.signInWithOAuth({
             provider: "google",
             options: {
-                redirectTo: `${origin}/auth/callback`,
+                redirectTo: `${origin}/auth/callback?next=/onboarding`,
             },
         });
 
@@ -108,7 +108,7 @@ export default async function LoginPage({
         const { data, error } = await supabase.auth.signInWithOAuth({
             provider: "github",
             options: {
-                redirectTo: `${origin}/auth/callback`,
+                redirectTo: `${origin}/auth/callback?next=/onboarding`,
             },
         });
 
