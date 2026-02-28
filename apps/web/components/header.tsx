@@ -73,13 +73,13 @@ export function Header() {
 
     if (isLoading) {
         return (
-            <header className="border-b border-gray-200 bg-white">
+            <header className="sticky top-0 z-50 border-b border-white/6 bg-slate-950/80 backdrop-blur-xl">
                 <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                     <div className="flex h-16 items-center justify-between">
-                        <Link href="/" className="text-xl font-bold text-gray-900">
-                            CODEXCHANGE
+                        <Link href="/" className="text-xl font-extrabold tracking-tight text-white">
+                            CODE<span className="text-indigo-400">XCHANGE</span>
                         </Link>
-                        <div className="h-8 w-32 animate-pulse bg-gray-200 rounded"></div>
+                        <div className="h-8 w-32 animate-pulse rounded-lg bg-white/8" />
                     </div>
                 </div>
             </header>
@@ -87,32 +87,32 @@ export function Header() {
     }
 
     return (
-        <header className="sticky top-0 z-50 border-b border-gray-200 bg-white">
+        <header className="sticky top-0 z-50 border-b border-white/6 bg-slate-950/80 backdrop-blur-xl">
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                 <div className="flex h-16 items-center justify-between">
                     {/* Logo */}
-                    <Link href="/" className="text-xl font-bold text-gray-900">
-                        CODEXCHANGE
+                    <Link href="/" className="text-xl font-extrabold tracking-tight text-white">
+                        CODE<span className="text-indigo-400">XCHANGE</span>
                     </Link>
 
                     {/* Navigation */}
                     <nav className="flex items-center gap-6">
                         <Link
                             href="/browse"
-                            className="text-sm font-medium text-gray-700 hover:text-gray-900"
+                            className="text-sm font-medium text-slate-400 transition hover:text-white"
                         >
                             Browse
                         </Link>
                         <Link
                             href="/dashboard"
-                            className="text-sm font-medium text-gray-700 hover:text-gray-900"
+                            className="text-sm font-medium text-slate-400 transition hover:text-white"
                         >
                             Dashboard
                         </Link>
                         {user?.role === "admin" && (
                             <Link
                                 href="/admin"
-                                className="text-sm font-medium text-gray-700 hover:text-gray-900"
+                                className="text-sm font-medium text-slate-400 transition hover:text-white"
                             >
                                 Admin
                             </Link>
@@ -120,7 +120,7 @@ export function Header() {
                         {(user?.role === "builder" || user?.role === "admin") && (
                             <Link
                                 href="/asset/submit"
-                                className="text-sm font-medium text-gray-700 hover:text-gray-900"
+                                className="text-sm font-medium text-slate-400 transition hover:text-white"
                             >
                                 Sell Asset
                             </Link>
@@ -131,11 +131,11 @@ export function Header() {
                     {user ? (
                         <div className="flex items-center gap-3">
                             <div className="flex items-center gap-2 text-sm">
-                                <User className="h-4 w-4 text-gray-500" />
-                                <span className="font-medium text-gray-700">
+                                <User className="h-4 w-4 text-slate-400" />
+                                <span className="font-medium text-slate-300">
                                     {user.fullName || user.email?.split("@")[0]}
                                 </span>
-                                <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
+                                <span className="rounded-full bg-indigo-500/15 px-2 py-0.5 text-xs font-medium text-indigo-300 ring-1 ring-inset ring-indigo-500/20">
                                     {user.role}
                                 </span>
                             </div>
@@ -143,7 +143,7 @@ export function Header() {
                                 onClick={handleLogout}
                                 variant="ghost"
                                 size="sm"
-                                className="gap-2"
+                                className="gap-2 text-slate-400 hover:text-white"
                             >
                                 <LogOut className="h-4 w-4" />
                                 Logout
@@ -152,12 +152,19 @@ export function Header() {
                     ) : (
                         <div className="flex items-center gap-3">
                             <Link href="/login">
-                                <Button variant="ghost" size="sm">
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-slate-400 hover:text-white"
+                                >
                                     Login
                                 </Button>
                             </Link>
                             <Link href="/signup">
-                                <Button size="sm">
+                                <Button
+                                    size="sm"
+                                    className="bg-indigo-600 text-white hover:bg-indigo-500"
+                                >
                                     Sign Up
                                 </Button>
                             </Link>

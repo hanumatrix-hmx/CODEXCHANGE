@@ -1,6 +1,6 @@
 import { db } from "./index";
-import { assets, licenses, reviews as reviewsTable } from "./schema";
-import { eq, and, desc, sql } from "drizzle-orm";
+import { assets, licenses, reviews as reviewsTable, categories } from "./schema";
+import { eq, and, desc, sql, count, countDistinct } from "drizzle-orm";
 
 /**
  * Get asset by slug with all relations
@@ -76,7 +76,7 @@ export async function getPendingAssets() {
         where: eq(assets.status as any, "pending_review"),
         with: {
             category: true,
-            builder: true, 
+            builder: true,
         },
         orderBy: [desc(assets.createdAt)],
     });
@@ -100,10 +100,10 @@ export async function getBuilderAnalytics(builderId: string) {
 
         const approvedAssets = builderAssets.filter((a: any) => a.status === "approved").length;
 
-        const totalSales = 0; 
-        const totalViews = 0; 
-        const totalRevenue = 0; 
-        const pendingPayout = 0; 
+        const totalSales = 0;
+        const totalViews = 0;
+        const totalRevenue = 0;
+        const pendingPayout = 0;
 
         return {
             totalAssets,
@@ -116,10 +116,10 @@ export async function getBuilderAnalytics(builderId: string) {
                 id: asset.id,
                 name: asset.name,
                 slug: asset.slug,
-                status: asset.status, 
-                viewsCount: 0, 
-                salesCount: 0, 
-                revenue: 0, 
+                status: asset.status,
+                viewsCount: 0,
+                salesCount: 0,
+                revenue: 0,
                 category: asset.category,
             })),
         };
@@ -151,7 +151,7 @@ export async function getBuyerStats(buyerId: string) {
         return {
             totalLicenses,
             activeLicenses,
-            expiredLicenses: 0, 
+            expiredLicenses: 0,
             licenses,
         };
     } catch (error) {
@@ -175,4 +175,48 @@ export async function incrementAssetViews(assetId: string) {
             viewsCount: sql`${assets.viewsCount} + 1`,
         })
         .where(eq(assets.id, assetId));
+}
+
+/**
+ * Get featured/latest approved assets for the landing page
+ */
+export async function getFeaturedAssets(limit = 6) {
+    return db.query.assets.findMany({
+        where: eq(assets.status, "approved"),
+        with: { category: true },
+        orderBy: [desc(assets.createdAt)],
+        limit,
+    });
+}
+
+/**
+ * Get all categories (used for pills & icon grid on landing page)
+ */
+export async function getAllCategories() {
+    return db.select().from(categories).orderBy(categories.name);
+}
+
+/**
+ * Get marketplace-wide stats for the hero section
+ */
+export async function getMarketplaceStats() {
+    const [toolsResult] = await db
+        .select({ count: count() })
+        .from(assets)
+        .where(eq(assets.status, "approved"));
+
+    const [buildersResult] = await db
+        .select({ count: countDistinct(assets.builderId) })
+        .from(assets)
+        .where(eq(assets.status, "approved"));
+
+    const [categoriesResult] = await db
+        .select({ count: count() })
+        .from(categories);
+
+    return {
+        totalTools: toolsResult?.count ?? 0,
+        totalBuilders: buildersResult?.count ?? 0,
+        totalCategories: categoriesResult?.count ?? 0,
+    };
 }
