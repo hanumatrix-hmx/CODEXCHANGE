@@ -213,6 +213,11 @@ export function Header() {
                             />
                         </div>
 
+                        {user?.role === "admin" && (
+                            <Link href="/admin" className="text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+                                Admin Dashboard
+                            </Link>
+                        )}
                         {(user?.role === "builder" || user?.role === "admin") && (
                             <Link href="/asset/submit" className="text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
                                 Sell Asset
@@ -379,6 +384,11 @@ export function Header() {
                             <Link href="/browse" onClick={() => setIsMobileMenuOpen(false)} className="block text-base font-medium text-gray-900 dark:text-gray-100 hover:text-indigo-600 transition-colors">
                                 All Categories
                             </Link>
+                            {user?.role === "admin" && (
+                                <Link href="/admin" onClick={() => setIsMobileMenuOpen(false)} className="block text-base font-medium text-gray-900 dark:text-gray-100 hover:text-indigo-600 transition-colors">
+                                    Admin Dashboard
+                                </Link>
+                            )}
                             {(user?.role === "builder" || user?.role === "admin") && (
                                 <Link href="/asset/submit" onClick={() => setIsMobileMenuOpen(false)} className="block text-base font-medium text-gray-900 dark:text-gray-100 hover:text-indigo-600 transition-colors">
                                     Sell Asset
