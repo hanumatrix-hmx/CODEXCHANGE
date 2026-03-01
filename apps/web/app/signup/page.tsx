@@ -17,14 +17,19 @@ export default async function SignupPage({
         const email = formData.get("email") as string;
         const supabase = await createClient();
         const headersList = await headers();
-        const origin = headersList.get("origin") || process.env.NEXT_PUBLIC_APP_URL!;
 
+        let origin = process.env.NEXT_PUBLIC_APP_URL!;
+        const host = headersList.get("x-forwarded-host") || headersList.get("host");
+        if (host) {
+            const protocol = host.includes("localhost") ? "http" : "https";
+            origin = `${protocol}://${host}`;
+        }
 
         const { error } = await supabase.auth.signInWithOtp({
             email,
             options: {
                 shouldCreateUser: true,
-                emailRedirectTo: `${origin}/auth/callback`,
+                emailRedirectTo: `${origin}/auth/callback?next=/onboarding`,
             },
         });
 
@@ -43,12 +48,18 @@ export default async function SignupPage({
         "use server";
         const supabase = await createClient();
         const headersList = await headers();
-        const origin = headersList.get("origin") || process.env.NEXT_PUBLIC_APP_URL!;
+
+        let origin = process.env.NEXT_PUBLIC_APP_URL!;
+        const host = headersList.get("x-forwarded-host") || headersList.get("host");
+        if (host) {
+            const protocol = host.includes("localhost") ? "http" : "https";
+            origin = `${protocol}://${host}`;
+        }
 
         const { data, error } = await supabase.auth.signInWithOAuth({
             provider: "google",
             options: {
-                redirectTo: `${origin}/auth/callback`,
+                redirectTo: `${origin}/auth/callback?next=/onboarding`,
             },
         });
 
@@ -66,12 +77,18 @@ export default async function SignupPage({
         "use server";
         const supabase = await createClient();
         const headersList = await headers();
-        const origin = headersList.get("origin") || process.env.NEXT_PUBLIC_APP_URL!;
+
+        let origin = process.env.NEXT_PUBLIC_APP_URL!;
+        const host = headersList.get("x-forwarded-host") || headersList.get("host");
+        if (host) {
+            const protocol = host.includes("localhost") ? "http" : "https";
+            origin = `${protocol}://${host}`;
+        }
 
         const { data, error } = await supabase.auth.signInWithOAuth({
             provider: "github",
             options: {
-                redirectTo: `${origin}/auth/callback`,
+                redirectTo: `${origin}/auth/callback?next=/onboarding`,
             },
         });
 
