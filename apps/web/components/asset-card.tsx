@@ -24,36 +24,40 @@ export interface Asset {
 export function AssetCard({
     asset,
     variant = "light",
+    layout = "vertical",
 }: {
     asset: Asset;
     variant?: "light" | "dark";
+    layout?: "vertical" | "horizontal";
 }) {
     const imageUrl =
         asset.thumbnailUrl ||
         `https://placehold.co/600x400/1e1b4b/a5b4fc?text=${encodeURIComponent(asset.name)}`;
 
     const isDark = variant === "dark";
+    const isHorizontal = layout === "horizontal";
 
     return (
         <Link href={`/asset/${asset.slug}`} className="group block h-full">
             <div
-                className={`flex flex-col h-full overflow-hidden rounded-2xl border shadow-sm transition-all duration-300 ${isDark
-                    ? "border-white/8 bg-white/3 backdrop-blur-sm hover:border-indigo-500/50 hover:shadow-lg hover:shadow-indigo-500/10"
-                    : "border-gray-200 bg-white dark:border-white/8 dark:bg-white/3 dark:backdrop-blur-sm hover:border-indigo-500 hover:shadow-md dark:hover:border-indigo-500/50 dark:hover:shadow-lg dark:hover:shadow-indigo-500/10"
+                className={`flex ${isHorizontal ? "flex-col sm:flex-row" : "flex-col"
+                    } h-full overflow-hidden rounded-2xl border shadow-sm transition-all duration-300 ${isDark
+                        ? "border-white/8 bg-white/3 backdrop-blur-sm hover:border-indigo-500/50 hover:shadow-lg hover:shadow-indigo-500/10"
+                        : "border-gray-200 bg-white dark:border-white/8 dark:bg-white/3 dark:backdrop-blur-sm hover:border-indigo-500 hover:shadow-md dark:hover:border-indigo-500/50 dark:hover:shadow-lg dark:hover:shadow-indigo-500/10"
                     }`}
             >
-                <div className="aspect-h-9 aspect-w-16 bg-gray-200">
+                <div className={`${isHorizontal ? "w-1/3 shrink-0 relative" : "aspect-h-9 aspect-w-16"} bg-gray-200`}>
                     <Image
                         src={imageUrl}
                         alt={asset.name}
                         width={600}
                         height={400}
                         unoptimized
-                        className="h-48 w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        className={`${isHorizontal ? "absolute inset-0 h-full w-full object-cover" : "h-48 w-full object-cover"} transition-transform duration-300 group-hover:scale-105`}
                     />
                 </div>
 
-                <div className="flex flex-col p-4 flex-grow">
+                <div className={`flex flex-col ${isHorizontal ? "p-6 w-2/3" : "p-4"} flex-grow`}>
                     <div className="mb-2 flex items-center justify-between">
                         <span
                             className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ring-1 ring-inset ${isDark
@@ -84,14 +88,14 @@ export function AssetCard({
                     </h3>
 
                     <p
-                        className={`mt-1 line-clamp-2 flex-grow text-sm ${isDark ? "text-slate-400" : "text-gray-500 dark:text-slate-400"
+                        className={`mt-1 flex-grow text-sm ${isHorizontal ? "line-clamp-3" : "line-clamp-2"} ${isDark ? "text-slate-400" : "text-gray-500 dark:text-slate-400"
                             }`}
                     >
                         {asset.description}
                     </p>
 
                     <div
-                        className={`mt-auto flex items-center justify-between border-t pt-4 ${isDark ? "border-white/8" : "border-gray-100 dark:border-white/8"
+                        className={`mt-auto flex items-center justify-between border-t ${isHorizontal ? "pt-6 mt-6" : "pt-4"} ${isDark ? "border-white/8" : "border-gray-100 dark:border-white/8"
                             }`}
                     >
                         <div
