@@ -55,7 +55,7 @@ export function FeaturedGrid({ assets }: { assets: Asset[] }) {
                 {assets.map((asset, i) => (
                     <div
                         key={asset.id}
-                        className="feat-card"
+                        className="feat-card h-full"
                         style={{
                             opacity: 0,
                             animation: `featCardIn 0.5s ease forwards`,
@@ -64,7 +64,7 @@ export function FeaturedGrid({ assets }: { assets: Asset[] }) {
                         }}
                     >
                         {/* Dark card wrapper */}
-                        <div className="group relative overflow-hidden rounded-2xl border border-white/8 bg-white/3 backdrop-blur-sm transition-all duration-300 hover:border-indigo-500/40 hover:shadow-lg hover:shadow-indigo-500/10">
+                        <div className="group relative h-full flex flex-col overflow-hidden rounded-2xl border border-white/8 bg-white/3 backdrop-blur-sm transition-all duration-300 hover:border-indigo-500/40 hover:shadow-lg hover:shadow-indigo-500/10">
                             <AssetCard asset={asset} variant="dark" />
                         </div>
                     </div>

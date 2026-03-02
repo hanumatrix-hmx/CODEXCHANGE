@@ -37,9 +37,9 @@ export function AssetCard({
     return (
         <Link href={`/asset/${asset.slug}`} className="group block h-full">
             <div
-                className={`h-full overflow-hidden rounded-lg border shadow-sm transition-all ${isDark
-                        ? "border-white/8 bg-white/3 hover:border-indigo-500/50 hover:shadow-lg hover:shadow-indigo-500/10"
-                        : "border-gray-200 bg-white hover:border-blue-500 hover:shadow-md"
+                className={`flex flex-col h-full overflow-hidden rounded-lg border shadow-sm transition-all ${isDark
+                    ? "border-white/8 bg-white/3 hover:border-indigo-500/50 hover:shadow-lg hover:shadow-indigo-500/10"
+                    : "border-gray-200 bg-white hover:border-blue-500 hover:shadow-md"
                     }`}
             >
                 <div className="aspect-h-9 aspect-w-16 bg-gray-200">
@@ -53,12 +53,12 @@ export function AssetCard({
                     />
                 </div>
 
-                <div className="flex flex-col p-4">
+                <div className="flex flex-col p-4 flex-grow">
                     <div className="mb-2 flex items-center justify-between">
                         <span
                             className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ring-1 ring-inset ${isDark
-                                    ? "bg-indigo-500/15 text-indigo-300 ring-indigo-500/20"
-                                    : "bg-blue-50 text-blue-700 ring-blue-700/10"
+                                ? "bg-indigo-500/15 text-indigo-300 ring-indigo-500/20"
+                                : "bg-blue-50 text-blue-700 ring-blue-700/10"
                                 }`}
                         >
                             {asset.category?.name || "AI Tool"}
@@ -76,8 +76,8 @@ export function AssetCard({
 
                     <h3
                         className={`text-lg font-semibold transition-colors ${isDark
-                                ? "text-slate-100 group-hover:text-indigo-300"
-                                : "text-gray-900 group-hover:text-blue-600"
+                            ? "text-slate-100 group-hover:text-indigo-300"
+                            : "text-gray-900 group-hover:text-blue-600"
                             }`}
                     >
                         {asset.name}
@@ -91,7 +91,7 @@ export function AssetCard({
                     </p>
 
                     <div
-                        className={`mt-4 flex items-center justify-between border-t pt-4 ${isDark ? "border-white/8" : "border-gray-100"
+                        className={`mt-auto flex items-center justify-between border-t pt-4 ${isDark ? "border-white/8" : "border-gray-100"
                             }`}
                     >
                         <div
