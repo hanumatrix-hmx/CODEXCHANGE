@@ -181,8 +181,9 @@ export async function incrementAssetViews(assetId: string) {
  * Full-text search for assets
  */
 export async function searchAssets(params: {
-    query: string;
+    query?: string;
     categoryId?: string;
+    categorySlug?: string | string[];
     minPrice?: number;
     maxPrice?: number;
     sort: "relevance" | "newest" | "price_asc" | "price_desc" | "popular";
@@ -197,16 +198,28 @@ export async function searchAssets(params: {
         WITH search_results AS (
             SELECT 
                 a.*,
-                LEAST(COALESCE(a.usage_license_price, 999999), COALESCE(a.source_license_price, 999999)) as effective_price,
-                ts_rank(a.search_vector, plainto_tsquery('english', ${params.query})) as rank
+                LEAST(COALESCE(a.usage_license_price, 999999), COALESCE(a.source_license_price, 999999)) as effective_price
+                ${params.query ? sql`, ts_rank(a.search_vector, plainto_tsquery('english', ${params.query})) as rank` : sql`, 0 as rank`}
             FROM assets a
+            ${params.categorySlug ? sql`LEFT JOIN categories cat ON cat.id = a.category_id` : sql``}
             WHERE a.status = 'approved'
-            AND a.search_vector @@ plainto_tsquery('english', ${params.query})
     `;
+
+    if (params.query) {
+        sqlQuery = sql`${sqlQuery} AND a.search_vector @@ plainto_tsquery('english', ${params.query})`;
+    }
 
     // Apply category filter
     if (params.categoryId) {
         sqlQuery = sql`${sqlQuery} AND a.category_id = ${params.categoryId}`;
+    }
+
+    if (params.categorySlug) {
+        const slugs = Array.isArray(params.categorySlug) ? params.categorySlug : [params.categorySlug];
+        if (slugs.length > 0) {
+            const slugList = sql.raw(slugs.map(s => `'${s.replace(/'/g, "''")}'`).join(", "));
+            sqlQuery = sql`${sqlQuery} AND cat.slug IN (${slugList})`;
+        }
     }
 
     // Apply price filters

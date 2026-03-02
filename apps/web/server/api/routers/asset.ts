@@ -15,8 +15,9 @@ export const assetRouter = createTRPCRouter({
     search: publicProcedure
         .input(
             z.object({
-                query: z.string().min(1),
+                query: z.string().optional().default(""),
                 categoryId: z.string().uuid().optional(),
+                categorySlug: z.union([z.string(), z.array(z.string())]).optional(),
                 minPrice: z.number().optional(),
                 maxPrice: z.number().optional(),
                 sort: z

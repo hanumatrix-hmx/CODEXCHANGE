@@ -37,9 +37,9 @@ export function AssetCard({
     return (
         <Link href={`/asset/${asset.slug}`} className="group block h-full">
             <div
-                className={`flex flex-col h-full overflow-hidden rounded-lg border shadow-sm transition-all ${isDark
-                    ? "border-white/8 bg-white/3 hover:border-indigo-500/50 hover:shadow-lg hover:shadow-indigo-500/10"
-                    : "border-gray-200 bg-white hover:border-blue-500 hover:shadow-md"
+                className={`flex flex-col h-full overflow-hidden rounded-2xl border shadow-sm transition-all duration-300 ${isDark
+                    ? "border-white/8 bg-white/3 backdrop-blur-sm hover:border-indigo-500/50 hover:shadow-lg hover:shadow-indigo-500/10"
+                    : "border-gray-200 bg-white dark:border-white/8 dark:bg-white/3 dark:backdrop-blur-sm hover:border-indigo-500 hover:shadow-md dark:hover:border-indigo-500/50 dark:hover:shadow-lg dark:hover:shadow-indigo-500/10"
                     }`}
             >
                 <div className="aspect-h-9 aspect-w-16 bg-gray-200">
@@ -58,44 +58,44 @@ export function AssetCard({
                         <span
                             className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ring-1 ring-inset ${isDark
                                 ? "bg-indigo-500/15 text-indigo-300 ring-indigo-500/20"
-                                : "bg-blue-50 text-blue-700 ring-blue-700/10"
+                                : "bg-blue-50 text-blue-700 ring-blue-700/10 dark:bg-indigo-500/15 dark:text-indigo-300 dark:ring-indigo-500/20"
                                 }`}
                         >
                             {asset.category?.name || "AI Tool"}
                         </span>
                         <div
-                            className={`flex items-center ${isDark ? "text-slate-400" : "text-gray-500"}`}
+                            className={`flex items-center ${isDark ? "text-slate-400" : "text-gray-500 dark:text-slate-400"}`}
                         >
                             {asset.status === "approved" && (
                                 <BadgeCheck
-                                    className={`h-4 w-4 ${isDark ? "text-indigo-400" : "text-blue-500"}`}
+                                    className={`h-4 w-4 ${isDark ? "text-indigo-400" : "text-blue-500 dark:text-indigo-400"}`}
                                 />
                             )}
                         </div>
                     </div>
 
                     <h3
-                        className={`text-lg font-semibold transition-colors ${isDark
+                        className={`text-lg font-semibold transition-colors duration-300 ${isDark
                             ? "text-slate-100 group-hover:text-indigo-300"
-                            : "text-gray-900 group-hover:text-blue-600"
+                            : "text-gray-900 group-hover:text-indigo-600 dark:text-slate-100 dark:group-hover:text-indigo-300"
                             }`}
                     >
                         {asset.name}
                     </h3>
 
                     <p
-                        className={`mt-1 line-clamp-2 flex-grow text-sm ${isDark ? "text-slate-400" : "text-gray-500"
+                        className={`mt-1 line-clamp-2 flex-grow text-sm ${isDark ? "text-slate-400" : "text-gray-500 dark:text-slate-400"
                             }`}
                     >
                         {asset.description}
                     </p>
 
                     <div
-                        className={`mt-auto flex items-center justify-between border-t pt-4 ${isDark ? "border-white/8" : "border-gray-100"
+                        className={`mt-auto flex items-center justify-between border-t pt-4 ${isDark ? "border-white/8" : "border-gray-100 dark:border-white/8"
                             }`}
                     >
                         <div
-                            className={`flex items-center font-bold ${isDark ? "text-white" : "text-gray-900"
+                            className={`flex items-center font-bold ${isDark ? "text-white" : "text-gray-900 dark:text-white"
                                 }`}
                         >
                             {formatPrice(asset.usageLicensePrice)}
@@ -103,7 +103,7 @@ export function AssetCard({
                         <div className="flex items-center gap-3">
                             {asset.viewsCount !== undefined && (
                                 <span
-                                    className={`flex items-center text-xs ${isDark ? "text-slate-500" : "text-gray-500"
+                                    className={`flex items-center text-xs ${isDark ? "text-slate-500" : "text-gray-500 dark:text-slate-500"
                                         }`}
                                 >
                                     <Eye className="mr-1 h-3 w-3" />
@@ -111,7 +111,7 @@ export function AssetCard({
                                 </span>
                             )}
                             <span
-                                className={`text-xs ${isDark ? "text-slate-500" : "text-gray-400"}`}
+                                className={`text-xs ${isDark ? "text-slate-500" : "text-gray-400 dark:text-slate-500"}`}
                             >
                                 View Details →
                             </span>
