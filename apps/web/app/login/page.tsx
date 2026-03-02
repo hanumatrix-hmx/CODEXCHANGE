@@ -127,7 +127,7 @@ export default async function LoginPage({
             <div className="w-full max-w-md space-y-8 px-4 sm:px-0">
                 <div className="text-center">
                     <h2 className="mt-6 text-3xl font-bold tracking-tight">
-                        Sign in to CODEXCHANGE
+                        Sign in to <span className="font-black uppercase tracking-tight">CODE<span className="text-indigo-600 dark:text-indigo-400">XCHANGE</span></span>
                     </h2>
                     <p className="mt-2 text-sm text-gray-600">
                         Or{" "}
