@@ -164,8 +164,9 @@ export function Header() {
                     <div className="flex h-16 items-center justify-between">
                         <Link href="/" className="flex items-center gap-2 text-xl font-bold text-gray-900 dark:text-white">
                             <span className="text-indigo-600 dark:text-indigo-400">◆</span>
-                            CodeExchange
+                            <span className="font-black uppercase tracking-tight">CODE<span className="text-indigo-600 dark:text-indigo-400">XCHANGE</span></span>
                         </Link>
+                        <div className="h-8 w-32 animate-pulse rounded-lg bg-white/8" />
                         <div className="h-8 w-32 animate-pulse bg-gray-200 dark:bg-gray-800 rounded-full"></div>
                     </div>
                 </div>
@@ -187,7 +188,7 @@ export function Header() {
                     {/* Logo */}
                     <Link href="/" className="flex items-center gap-2 text-xl font-bold text-gray-900 dark:text-white z-10 shrink-0">
                         <span className="text-indigo-600 dark:text-indigo-400">◆</span>
-                        <span className="hidden sm:inline-block tracking-tight">CodeExchange</span>
+                        <span className="hidden sm:inline-block tracking-tight font-black uppercase">CODE<span className="text-indigo-600 dark:text-indigo-400">XCHANGE</span></span>
                     </Link>
 
                     {/* Desktop Navigation */}
