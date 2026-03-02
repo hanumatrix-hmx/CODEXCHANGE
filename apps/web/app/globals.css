@@ -1,21 +1,106 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --background: #020817;
+  --foreground: #f1f5f9;
 }
 
 body {
   color: var(--foreground);
   background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+/* ─── Hero Section ──────────────────────────────────────────────── */
+.hero-section {
+  background: radial-gradient(ellipse 80% 60% at 50% -10%, #312e81 0%, #0f172a 60%, #020817 100%);
+  min-height: 580px;
+}
+
+.hero-noise {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+  background-size: 256px;
+  opacity: 0.4;
+}
+
+.hero-grid {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(99, 102, 241, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(99, 102, 241, 0.05) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: radial-gradient(ellipse 70% 70% at 50% 50%, black 0%, transparent 100%);
+}
+
+.hero-blob {
+  pointer-events: none;
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(80px);
+}
+.hero-blob-1 {
+  top: -80px; left: -100px;
+  width: 400px; height: 400px;
+  background: rgba(99, 102, 241, 0.18);
+}
+.hero-blob-2 {
+  bottom: -80px; right: -100px;
+  width: 360px; height: 360px;
+  background: rgba(139, 92, 246, 0.15);
+}
+
+/* Staggered hero text animations */
+.hero-animate {
+  opacity: 0;
+  animation: fadeInUp 0.65s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+.hero-animate-1 { animation-delay: 0ms; }
+.hero-animate-2 { animation-delay: 100ms; }
+.hero-animate-3 { animation-delay: 200ms; }
+.hero-animate-4 { animation-delay: 320ms; }
+.hero-animate-5 { animation-delay: 440ms; }
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(22px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Search bar breathing glow */
+.search-glow {
+  animation: breathe 3.5s ease-in-out infinite;
+}
+@keyframes breathe {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); }
+  50%       { box-shadow: 0 0 28px 4px rgba(99, 102, 241, 0.35); }
+}
+
+/* Featured card stagger */
+@keyframes featCardIn {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Hide scrollbar (category pills) */
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Utility: frosted bg variants */
+.bg-white\/3  { background-color: rgba(255, 255, 255, 0.03); }
+.bg-white\/5  { background-color: rgba(255, 255, 255, 0.05); }
+.bg-white\/8  { background-color: rgba(255, 255, 255, 0.08); }
+.border-white\/8 { border-color: rgba(255,255,255, 0.08); }
+
+/* AssetCard dark-mode override when used inside landing */
+.feat-card .group .border-gray-200 {
+  border-color: transparent;
+  background: transparent;
 }
