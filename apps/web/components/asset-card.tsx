@@ -49,8 +49,8 @@ export function AssetCard({
             <div
                 className={`flex ${isHorizontal ? "flex-col sm:flex-row" : "flex-col"
                     } h-full overflow-hidden rounded-2xl border shadow-sm transition-all duration-300 ${isDark
-                        ? "border-white/8 bg-white/3 backdrop-blur-sm hover:border-indigo-500/50 hover:shadow-lg hover:shadow-indigo-500/10"
-                        : "border-gray-200 bg-white dark:border-white/8 dark:bg-white/3 dark:backdrop-blur-sm hover:border-indigo-500 hover:shadow-md dark:hover:border-indigo-500/50 dark:hover:shadow-lg dark:hover:shadow-indigo-500/10"
+                        ? "border-white/10 bg-slate-900/80 backdrop-blur-sm hover:border-indigo-500/50 hover:shadow-lg hover:shadow-indigo-500/10"
+                        : "border-gray-200 bg-white dark:border-white/10 dark:bg-slate-900/80 dark:backdrop-blur-sm hover:border-indigo-500 hover:shadow-md dark:hover:border-indigo-500/50 dark:hover:shadow-lg dark:hover:shadow-indigo-500/10"
                     }`}
             >
                 <div className={`${isHorizontal ? "w-1/3 shrink-0 relative" : "aspect-h-9 aspect-w-16"} bg-gray-200`}>
