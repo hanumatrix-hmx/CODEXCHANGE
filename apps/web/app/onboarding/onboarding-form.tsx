@@ -41,7 +41,7 @@ export function OnboardingForm({ initialRole, initialFullName }: OnboardingFormP
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        if (!role || !formData.fullName.trim() || !formData.password || formData.password.length < 6) return;
+        if (!role || !formData.fullName.trim()) return;
 
         // Builder validation
         if (role === "builder") {
@@ -134,18 +134,17 @@ export function OnboardingForm({ initialRole, initialFullName }: OnboardingFormP
                 </div>
 
                 <div className="space-y-2 text-left">
-                    <Label htmlFor="password" className="text-gray-900 font-semibold">Create Password <span className="text-red-500">*</span></Label>
+                    <Label htmlFor="password" className="text-gray-900 font-semibold">Create Password <span className="text-gray-400 font-normal text-xs">(optional)</span></Label>
                     <Input
                         id="password"
                         type="password"
-                        placeholder="Min 6 characters"
+                        placeholder="Min 6 characters — skip if using Google/GitHub"
                         value={formData.password}
                         onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                        required
                         minLength={6}
                     />
                     <p className="text-xs text-gray-500">
-                        Set a password to log in without Magic Link next time.
+                        Set a password to sign in without Google/GitHub next time. Leave blank if you prefer OAuth.
                     </p>
                 </div>
 
