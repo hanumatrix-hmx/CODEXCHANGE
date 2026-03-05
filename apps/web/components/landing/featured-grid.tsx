@@ -64,7 +64,7 @@ export function FeaturedGrid({ assets }: { assets: Asset[] }) {
                         }}
                     >
                         {/* Dark card wrapper */}
-                        <div className="group relative h-full flex flex-col overflow-hidden rounded-2xl border border-white/8 bg-white/3 backdrop-blur-sm transition-all duration-300 hover:border-indigo-500/40 hover:shadow-lg hover:shadow-indigo-500/10">
+                        <div className="group relative h-full">
                             <AssetCard asset={asset} variant="dark" />
                         </div>
                     </div>

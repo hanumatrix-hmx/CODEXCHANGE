@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { BadgeCheck, Eye } from "lucide-react";
+import { BadgeCheck, Star } from "lucide-react";
 import { formatPrice } from "@/utils/format";
 
 export interface Asset {
@@ -9,6 +9,7 @@ export interface Asset {
     description: string;
     longDescription?: string | null;
     usageLicensePrice?: string | null;
+    sourceLicensePrice?: string | null;
     slug: string;
     thumbnailUrl?: string | null;
     builderId: string;
@@ -18,6 +19,12 @@ export interface Asset {
     category?: {
         name: string;
         slug: string;
+    } | null;
+    rating?: number;
+    salesCount?: number;
+    soldLicenses?: number;
+    builder?: {
+        fullName?: string | null;
     } | null;
 }
 
@@ -42,8 +49,8 @@ export function AssetCard({
             <div
                 className={`flex ${isHorizontal ? "flex-col sm:flex-row" : "flex-col"
                     } h-full overflow-hidden rounded-2xl border shadow-sm transition-all duration-300 ${isDark
-                        ? "border-white/8 bg-white/3 backdrop-blur-sm hover:border-indigo-500/50 hover:shadow-lg hover:shadow-indigo-500/10"
-                        : "border-gray-200 bg-white dark:border-white/8 dark:bg-white/3 dark:backdrop-blur-sm hover:border-indigo-500 hover:shadow-md dark:hover:border-indigo-500/50 dark:hover:shadow-lg dark:hover:shadow-indigo-500/10"
+                        ? "border-white/10 bg-slate-900/80 backdrop-blur-sm hover:border-indigo-500/50 hover:shadow-lg hover:shadow-indigo-500/10"
+                        : "border-gray-200 bg-white dark:border-white/10 dark:bg-slate-900/80 dark:backdrop-blur-sm hover:border-indigo-500 hover:shadow-md dark:hover:border-indigo-500/50 dark:hover:shadow-lg dark:hover:shadow-indigo-500/10"
                     }`}
             >
                 <div className={`${isHorizontal ? "w-1/3 shrink-0 relative" : "aspect-h-9 aspect-w-16"} bg-gray-200`}>
@@ -79,7 +86,7 @@ export function AssetCard({
                     </div>
 
                     <h3
-                        className={`text-lg font-semibold transition-colors duration-300 ${isDark
+                        className={`text-lg font-semibold truncate transition-colors duration-300 ${isDark
                             ? "text-slate-100 group-hover:text-indigo-300"
                             : "text-gray-900 group-hover:text-indigo-600 dark:text-slate-100 dark:group-hover:text-indigo-300"
                             }`}
@@ -88,37 +95,45 @@ export function AssetCard({
                     </h3>
 
                     <p
-                        className={`mt-1 flex-grow text-sm ${isHorizontal ? "line-clamp-3" : "line-clamp-2"} ${isDark ? "text-slate-400" : "text-gray-500 dark:text-slate-400"
+                        className={`mt-1 line-clamp-2 text-sm ${isDark ? "text-slate-400" : "text-gray-500 dark:text-slate-400"
                             }`}
                     >
                         {asset.description}
                     </p>
 
-                    <div
-                        className={`mt-auto flex items-center justify-between border-t ${isHorizontal ? "pt-6 mt-6" : "pt-4"} ${isDark ? "border-white/8" : "border-gray-100 dark:border-white/8"
-                            }`}
-                    >
+                    <div className="mt-3 flex flex-col gap-2">
                         <div
-                            className={`flex items-center font-bold ${isDark ? "text-white" : "text-gray-900 dark:text-white"
+                            className={`flex items-center text-sm font-bold ${isDark ? "text-white" : "text-gray-900 dark:text-white"
                                 }`}
                         >
-                            {formatPrice(asset.usageLicensePrice)}
-                        </div>
-                        <div className="flex items-center gap-3">
-                            {asset.viewsCount !== undefined && (
-                                <span
-                                    className={`flex items-center text-xs ${isDark ? "text-slate-500" : "text-gray-500 dark:text-slate-500"
-                                        }`}
-                                >
-                                    <Eye className="mr-1 h-3 w-3" />
-                                    {asset.viewsCount}
+                            {formatPrice(asset.usageLicensePrice)} Usage
+                            {asset.sourceLicensePrice ? (
+                                <span className={`ml-1 font-bold ${isDark ? "text-white" : "text-gray-900 dark:text-white"}`}>
+                                    | {formatPrice(asset.sourceLicensePrice)} Source
+                                </span>
+                            ) : (
+                                <span className={`ml-1 font-bold ${isDark ? "text-white" : "text-gray-900 dark:text-white"}`}>
+                                    | {formatPrice(asset.usageLicensePrice || null)} Source
                                 </span>
                             )}
-                            <span
-                                className={`text-xs ${isDark ? "text-slate-500" : "text-gray-400 dark:text-slate-500"}`}
-                            >
-                                View Details →
+                        </div>
+
+                        <div className="flex items-center gap-1 text-xs">
+                            {/* TODO: Implement real rating system. 4.2 is a placeholder for now */}
+                            <div className="flex items-center text-amber-500">
+                                <Star className="h-3 w-3 fill-current" />
+                                <span className={`ml-1 font-medium ${isDark ? "text-slate-300" : "text-slate-700 dark:text-slate-300"}`}>
+                                    {(asset.rating || 4.2).toFixed(1)}
+                                </span>
+                            </div>
+                            <span className={`mx-1 ${isDark ? "text-slate-600" : "text-slate-300 dark:text-slate-600"}`}>·</span>
+                            <span className={`${isDark ? "text-slate-400" : "text-slate-500 dark:text-slate-400"}`}>
+                                {asset.soldLicenses !== undefined ? asset.soldLicenses : (asset.salesCount || 0)} sold
                             </span>
+                        </div>
+
+                        <div className={`mt-1 text-xs ${isDark ? "text-slate-500" : "text-slate-500 dark:text-slate-400"}`}>
+                            by @{asset.builder?.fullName ? asset.builder.fullName.replace(/\s+/g, '').toLowerCase() : "builder"}
                         </div>
                     </div>
                 </div>
