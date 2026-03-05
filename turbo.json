@@ -10,7 +10,12 @@
         "CASHFREE_ENVIRONMENT",
         "CASHFREE_APP_ID",
         "CASHFREE_SECRET_KEY",
-        "CASHFREE_WEBHOOK_URL"
+        "CASHFREE_WEBHOOK_URL",
+        "NEXT_PUBLIC_SUPABASE_URL",
+        "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+        "NEXT_PUBLIC_APP_URL",
+        "VERCEL_BRANCH_URL",
+        "VERCEL_URL"
     ],
     "tasks": {
         "build": {
