@@ -161,7 +161,7 @@ export default function TagInput({ initialTags = [], maxTags = 10 }: TagInputPro
                                     className={`px-4 py-2 cursor-pointer text-sm text-gray-700 italic ${selectedIndex === suggestions.length ? "bg-gray-100" : "hover:bg-gray-100"}`}
                                     onClick={() => addTag({ name: inputValue.trim().toLowerCase() })}
                                 >
-                                    Create block &quot;{inputValue.trim()}&quot;
+                                    Create &quot;{inputValue.trim()}&quot;
                                 </div>
                             )}
                         </>
