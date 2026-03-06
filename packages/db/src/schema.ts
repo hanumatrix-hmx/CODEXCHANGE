@@ -85,7 +85,6 @@ export const assets = pgTable("assets", {
     viewsCount: integer("views_count").default(0).notNull(),
 
     // Technical details
-    techStack: jsonb("tech_stack").$type<string[]>(),
     demoUrl: text("demo_url"),
     githubUrl: text("github_url"),
 

@@ -1,4 +1,4 @@
-import { db, categories, assets, listingImages } from "@codexchange/db";
+import { db, categories, assets, listingImages, listingTags, tags } from "@codexchange/db";
 import SubmitAssetForm from "../../submit/submit-form";
 import MarketplaceLayout from "@/components/marketplace-layout";
 import { redirect, notFound } from "next/navigation";
@@ -28,9 +28,16 @@ export default async function EditAssetPage({ params }: { params: any }) {
 
     const images = await db.select().from(listingImages).where(eq(listingImages.assetId, assetData.id));
 
+    const tagsQuery = await db
+        .select({ id: tags.id, name: tags.name })
+        .from(listingTags)
+        .innerJoin(tags, eq(listingTags.tagId, tags.id))
+        .where(eq(listingTags.assetId, assetData.id));
+
     const fullAssetData = {
         ...assetData,
-        listingImages: images
+        listingImages: images,
+        tags: tagsQuery
     };
 
     const allCategories = await db.select().from(categories).orderBy(categories.name);

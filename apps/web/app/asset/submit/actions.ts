@@ -1,10 +1,10 @@
 "use server";
 
-import { db, assets, listingImages } from "@codexchange/db";
+import { db, assets, listingImages, tags, listingTags } from "@codexchange/db";
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { eq, inArray, and } from "drizzle-orm";
+import { eq, inArray, and, ilike } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 const assetSchema = z.object({
@@ -15,7 +15,6 @@ const assetSchema = z.object({
     longDescription: z.string().optional(),
     usageLicensePrice: z.string().regex(/^\d+(\.\d{1,2})?$/, "Invalid price format"),
     sourceLicensePrice: z.string().regex(/^\d+(\.\d{1,2})?$/, "Invalid price format").optional().or(z.literal("")).transform(val => (val === "" || val === undefined) ? null : val),
-    techStack: z.string().optional(),
     maxLicenses: z.string().optional().transform(val => val ? parseInt(val, 10) : null),
     demoUrl: z.string().url("Invalid URL").optional().or(z.literal("")),
     githubUrl: z.string().url("Invalid URL").optional().or(z.literal("")),
@@ -62,11 +61,20 @@ export async function submitAsset(_prevState: any, formData: FormData): Promise<
         usageLicensePrice: formData.get("usageLicensePrice") as string,
         sourceLicensePrice: formData.get("sourceLicensePrice") as string,
         maxLicenses: formData.get("maxLicenses") as string,
-        techStack: formData.get("techStack") as string,
         demoUrl: formData.get("demoUrl") as string,
         githubUrl: formData.get("githubUrl") as string,
         licenseFeatures: formData.get("licenseFeatures") as string,
     };
+
+    const tagsStr = formData.get("tags") as string;
+    let tagNames: string[] = [];
+    if (tagsStr) {
+        try {
+            tagNames = JSON.parse(tagsStr);
+        } catch (e) {
+            console.error("Invalid tags format");
+        }
+    }
 
     const validated = assetSchema.safeParse(rawData);
 
@@ -76,7 +84,7 @@ export async function submitAsset(_prevState: any, formData: FormData): Promise<
         };
     }
 
-    const { techStack, ...rest } = validated.data;
+    const { ...rest } = validated.data;
 
     // Handle image uploads
     const coverImageFile = formData.get("coverImage") as File;
@@ -135,7 +143,6 @@ export async function submitAsset(_prevState: any, formData: FormData): Promise<
         const [newAsset] = await db.insert(assets).values({
             ...rest,
             builderId: user.id,
-            techStack: techStack ? techStack.split(",").map(s => s.trim()) : [],
             status: "pending_review",
             // Use the cover image (sortOrder 0) as thumbnail if available, otherwise first gallery image
             thumbnailUrl: uploadedImageUrls.length > 0 ? uploadedImageUrls.sort((a, b) => a.sortOrder - b.sortOrder)[0].url : null,
@@ -149,6 +156,31 @@ export async function submitAsset(_prevState: any, formData: FormData): Promise<
                     sortOrder: img.sortOrder,
                 }))
             );
+        }
+
+        // Handle tags
+        if (tagNames.length > 0) {
+            const uniqueTagNames = [...new Set(tagNames.map(t => t.toLowerCase()))].slice(0, 10);
+            const tagIdsToLink: string[] = [];
+
+            for (const tagName of uniqueTagNames) {
+                const [existingTag] = await db.select().from(tags).where(eq(tags.name, tagName));
+                if (existingTag) {
+                    tagIdsToLink.push(existingTag.id);
+                } else {
+                    const [newTag] = await db.insert(tags).values({ name: tagName }).returning({ id: tags.id });
+                    tagIdsToLink.push(newTag.id);
+                }
+            }
+
+            if (tagIdsToLink.length > 0) {
+                await db.insert(listingTags).values(
+                    tagIdsToLink.map(tagId => ({
+                        assetId: newAsset.id,
+                        tagId
+                    }))
+                );
+            }
         }
     } catch (error: any) {
         console.error("Failed to submit asset - General Catch Block Error:", error);
@@ -195,11 +227,20 @@ export async function updateAsset(_prevState: any, formData: FormData): Promise<
         usageLicensePrice: formData.get("usageLicensePrice") as string,
         sourceLicensePrice: formData.get("sourceLicensePrice") as string,
         maxLicenses: formData.get("maxLicenses") as string,
-        techStack: formData.get("techStack") as string,
         demoUrl: formData.get("demoUrl") as string,
         githubUrl: formData.get("githubUrl") as string,
         licenseFeatures: formData.get("licenseFeatures") as string,
     };
+
+    const tagsStr = formData.get("tags") as string;
+    let tagNames: string[] = [];
+    if (tagsStr) {
+        try {
+            tagNames = JSON.parse(tagsStr);
+        } catch (e) {
+            console.error("Invalid tags format");
+        }
+    }
 
     const validated = assetSchema.safeParse(rawData);
 
@@ -209,7 +250,7 @@ export async function updateAsset(_prevState: any, formData: FormData): Promise<
         };
     }
 
-    const { techStack, slug, ...rest } = validated.data;
+    const { slug, ...rest } = validated.data;
 
     const coverImageFile = formData.get("coverImage") as File | null;
     const galleryImageFiles = formData.getAll("galleryImages") as File[];
@@ -300,7 +341,6 @@ export async function updateAsset(_prevState: any, formData: FormData): Promise<
 
         await db.update(assets).set({
             ...rest,
-            techStack: techStack ? techStack.split(",").map(s => s.trim()) : [],
             thumbnailUrl: updatedThumbnailUrl,
             updatedAt: new Date(),
         }).where(eq(assets.id, assetId));
@@ -314,6 +354,35 @@ export async function updateAsset(_prevState: any, formData: FormData): Promise<
                 }))
             );
         }
+
+        // Handle tags
+        if (tagNames.length > 0) {
+            const uniqueTagNames = [...new Set(tagNames.map(t => t.toLowerCase()))].slice(0, 10);
+            const tagIdsToLink: string[] = [];
+
+            for (const tagName of uniqueTagNames) {
+                const [existingTag] = await db.select().from(tags).where(eq(tags.name, tagName));
+                if (existingTag) {
+                    tagIdsToLink.push(existingTag.id);
+                } else {
+                    const [newTag] = await db.insert(tags).values({ name: tagName }).returning({ id: tags.id });
+                    tagIdsToLink.push(newTag.id);
+                }
+            }
+
+            await db.delete(listingTags).where(eq(listingTags.assetId, assetId));
+
+            if (tagIdsToLink.length > 0) {
+                await db.insert(listingTags).values(
+                    tagIdsToLink.map(tagId => ({
+                        assetId,
+                        tagId
+                    }))
+                );
+            }
+        } else {
+            await db.delete(listingTags).where(eq(listingTags.assetId, assetId));
+        }
     } catch (error: any) {
         console.error("Failed to update asset:", error);
         return {
@@ -326,4 +395,20 @@ export async function updateAsset(_prevState: any, formData: FormData): Promise<
     revalidatePath(`/asset/${existingAsset.slug}`);
 
     return redirect("/dashboard/builder?message=Asset updated successfully.");
+}
+
+export async function searchTags(query: string) {
+    if (!query || query.trim() === "") return [];
+
+    try {
+        const results = await db
+            .select({ id: tags.id, name: tags.name })
+            .from(tags)
+            .where(ilike(tags.name, `%${query.trim()}%`))
+            .limit(10);
+        return results;
+    } catch (e) {
+        console.error("Failed to search tags", e);
+        return [];
+    }
 }

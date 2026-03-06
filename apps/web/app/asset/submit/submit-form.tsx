@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import { submitAsset, updateAsset, type FormState } from "./actions";
 import { useState, useEffect } from "react";
 import Image from "next/image";
+import TagInput from "./tag-input";
 
 const initialState: FormState = {
     error: {},
@@ -414,20 +415,15 @@ export default function SubmitAssetForm({ categories, initialData }: { categorie
                     )}
                 </div>
 
-                <div className="sm:col-span-1">
-                    <label htmlFor="techStack" className="block text-sm font-semibold text-gray-900">
-                        Tech Stack (comma-separated)
+                <div className="sm:col-span-2">
+                    <label htmlFor="tags" className="block text-sm font-semibold text-gray-900 mb-2">
+                        Tech Stack / Tags (Max 10)
                     </label>
-                    <div className="mt-2">
-                        <input
-                            type="text"
-                            name="techStack"
-                            id="techStack"
-                            defaultValue={initialData?.techStack?.join(", ") || ""}
-                            placeholder="Next.js, Python, OpenAI"
-                            className="block w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-blue-500"
-                        />
-                    </div>
+                    <TagInput
+                        initialTags={initialData?.tags || []}
+                        maxTags={10}
+                    />
+                    <p className="mt-1 text-xs text-gray-500">Press ENTER to add a technology or feature tag. Search applies to existing tags.</p>
                 </div>
 
                 {/* Images */}

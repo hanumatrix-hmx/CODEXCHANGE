@@ -136,34 +136,16 @@ export default function AssetPage() {
                                 {asset.description}
                             </p>
 
-                            {/* Tech Stack */}
-                            {asset.techStack && asset.techStack.length > 0 && (
-                                <div className="mt-6">
-                                    <h3 className="text-sm font-medium text-gray-900">Tech Stack</h3>
-                                    <div className="mt-2 flex flex-wrap gap-2">
-                                        {asset.techStack.map((tech, index) => (
-                                            <Link
-                                                key={index}
-                                                href={`/browse?tag=${encodeURIComponent(tech)}`}
-                                                className="inline-flex items-center rounded-md bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-800 hover:bg-gray-200"
-                                            >
-                                                {tech}
-                                            </Link>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-
                             {/* Tags */}
                             {asset.tags && asset.tags.length > 0 && (
-                                <div className="mt-6">
-                                    <h3 className="text-sm font-medium text-gray-900">Tags</h3>
-                                    <div className="mt-2 flex flex-wrap gap-2">
+                                <div className="mt-8">
+                                    <h3 className="text-sm font-medium text-gray-900">Tags & Tech Stack</h3>
+                                    <div className="mt-3 flex flex-wrap gap-2">
                                         {asset.tags.map((item: any) => (
                                             <Link
                                                 key={item.tag.id}
                                                 href={`/browse?tag=${encodeURIComponent(item.tag.name)}`}
-                                                className="inline-flex items-center rounded-md bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100"
+                                                className="inline-flex items-center rounded-md bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100 transition-colors"
                                             >
                                                 #{item.tag.name}
                                             </Link>

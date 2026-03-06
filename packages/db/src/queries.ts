@@ -314,7 +314,6 @@ export async function searchAssets(params: {
             qualityTier: assetData.quality_tier,
             status: assetData.status,
             viewsCount: assetData.views_count,
-            techStack: assetData.tech_stack,
             demoUrl: assetData.demo_url,
             githubUrl: assetData.github_url,
             licenseFeatures: assetData.license_features,
