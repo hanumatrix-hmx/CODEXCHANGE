@@ -1,5 +1,5 @@
 import { db } from "./index";
-import { assets, licenses, reviews as reviewsTable, categories } from "./schema";
+import { assets, licenses, reviews as reviewsTable, categories, builderProfiles } from "./schema";
 import { eq, and, desc, sql, count, countDistinct } from "drizzle-orm";
 
 /**
@@ -89,21 +89,31 @@ export async function getPendingAssets() {
  */
 export async function getBuilderAnalytics(builderId: string) {
     try {
+        const profile = await db.query.builderProfiles.findFirst({
+            where: eq(builderProfiles.id, builderId),
+        });
+
         const builderAssets = await db.query.assets.findMany({
             where: eq(assets.builderId, builderId),
             with: {
                 category: true,
             },
+            orderBy: [desc(assets.createdAt)],
         });
 
         const totalAssets = builderAssets.length;
 
         const approvedAssets = builderAssets.filter((a: any) => a.status === "approved").length;
 
-        const totalSales = 0;
-        const totalViews = 0;
-        const totalRevenue = 0;
-        const pendingPayout = 0;
+        const totalSales = builderAssets.reduce((sum, asset) => sum + (asset.soldLicenses || 0), 0);
+        // Platform fee is 16%, and there is an 18% GST on that fee. 
+        // Effective Builder Share = 1 - 0.16 - (0.16 * 0.18) = 0.8112
+        const BUILDER_SHARE = 0.8112;
+
+        const totalRevenue = profile?.totalRevenue ? Number(profile.totalRevenue) * BUILDER_SHARE : 0;
+        const avgRating = profile?.averageRating ? Number(profile.averageRating) : 0;
+        const totalViews = builderAssets.reduce((sum, asset) => sum + (asset.viewsCount || 0), 0);
+        const pendingPayout = 0; // Keeping 0 to be calculated via payouts table in future
 
         return {
             totalAssets,
@@ -111,17 +121,24 @@ export async function getBuilderAnalytics(builderId: string) {
             totalSales,
             totalViews,
             totalRevenue,
+            avgRating,
             pendingPayout,
-            assets: builderAssets.map((asset) => ({
-                id: asset.id,
-                name: asset.name,
-                slug: asset.slug,
-                status: asset.status,
-                viewsCount: 0,
-                salesCount: 0,
-                revenue: 0,
-                category: asset.category,
-            })),
+            assets: builderAssets.map((asset) => {
+                const grossRevenue = (asset.soldLicenses || 0) * (asset.usageLicensePrice ? Number(asset.usageLicensePrice) : 0);
+                const netRevenue = grossRevenue * BUILDER_SHARE;
+
+                return {
+                    id: asset.id,
+                    name: asset.name,
+                    slug: asset.slug,
+                    status: asset.status,
+                    viewsCount: asset.viewsCount || 0,
+                    salesCount: asset.soldLicenses || 0,
+                    revenue: netRevenue,
+                    thumbnailUrl: asset.thumbnailUrl,
+                    category: asset.category,
+                };
+            }),
         };
     } catch (error) {
         console.error("Error in getBuilderAnalytics:", error);
@@ -132,6 +149,7 @@ export async function getBuilderAnalytics(builderId: string) {
             totalSales: 0,
             totalViews: 0,
             totalRevenue: 0,
+            avgRating: 0,
             pendingPayout: 0,
             assets: [],
         };

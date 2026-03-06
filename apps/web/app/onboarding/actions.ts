@@ -111,5 +111,11 @@ export async function setRole(data: {
     }
 
     // redirect() must be OUTSIDE try/catch — it throws NEXT_REDIRECT internally.
-    return redirect(finalRole === "admin" ? "/admin" : "/dashboard");
+    if (finalRole === "admin") {
+        return redirect("/admin");
+    } else if (finalRole === "builder") {
+        return redirect("/dashboard/builder");
+    } else {
+        return redirect("/dashboard");
+    }
 }
