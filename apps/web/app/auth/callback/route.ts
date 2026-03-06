@@ -62,10 +62,15 @@ export async function GET(request: NextRequest) {
                     .eq("id", user.id)
                     .single();
 
-                // Redirect complete admin profiles directly to admin page
+                // Redirect complete admin or builder profiles to their respective dashboards
                 if (profile?.role === "admin" && profile.full_name) {
                     console.log(`[Callback] Redirecting admin to ${origin}/admin`);
                     return NextResponse.redirect(`${origin}/admin`);
+                } else if (profile?.role === "builder" && profile.full_name) {
+                    // Check if the original next was specifically the generic dashboard
+                    const redirectUrl = next === "/dashboard" ? "/dashboard/builder" : next;
+                    console.log(`[Callback] Redirecting builder to ${origin}${redirectUrl}`);
+                    return NextResponse.redirect(`${origin}${redirectUrl}`);
                 }
             }
 

@@ -2,7 +2,7 @@ import * as React from "react";
 import { cn } from "@/utils/cn";
 
 export function LoadingSkeleton({ className }: { className?: string }) {
-    return <div className={cn("animate-pulse rounded-md bg-gray-200", className)} />;
+    return <div className={cn("animate-pulse rounded-md bg-gray-200 dark:bg-gray-800", className)} />;
 }
 
 export function CardSkeleton() {
@@ -28,7 +28,7 @@ export function TableSkeleton({ rows = 5 }: { rows?: number }) {
 
 export function StatCardSkeleton() {
     return (
-        <div className="rounded-lg border border-gray-200 bg-white p-6">
+        <div className="rounded-2xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900/50">
             <LoadingSkeleton className="mb-2 h-4 w-24" />
             <LoadingSkeleton className="mb-2 h-8 w-32" />
             <LoadingSkeleton className="h-3 w-40" />
