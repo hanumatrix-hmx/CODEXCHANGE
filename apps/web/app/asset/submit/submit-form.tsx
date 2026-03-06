@@ -1,8 +1,9 @@
 "use client";
 
 import { useActionState } from "react";
-import { submitAsset, type FormState } from "./actions";
-import { useState } from "react";
+import { submitAsset, updateAsset, type FormState } from "./actions";
+import { useState, useEffect } from "react";
+import Image from "next/image";
 
 const initialState: FormState = {
     error: {},
@@ -31,27 +32,49 @@ function calculateEarnings(price: number) {
 const MAX_FILE_SIZE_MB = 4;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
-export default function SubmitAssetForm({ categories }: { categories: any[] }) {
-    const [state, formAction] = useActionState(submitAsset, initialState);
+export default function SubmitAssetForm({ categories, initialData }: { categories: any[], initialData?: any }) {
+    const isEditing = !!initialData;
+    const action = isEditing ? updateAsset : submitAsset;
+    const [state, formAction] = useActionState(action, initialState);
+
     const [selectedImages, setSelectedImages] = useState<number>(0);
-    const [usageLicensePrice, setUsageLicensePrice] = useState<string>("");
-    const [sourceLicensePrice, setSourceLicensePrice] = useState<string>("");
-    const [usageFeatures, setUsageFeatures] = useState<string[]>(["Deploy to production", "Unlimited end users", "Technical support", "Updates for 1 year"]);
-    const [sourceFeatures, setSourceFeatures] = useState<string[]>(["Full source code access", "Modify and customize", "Lifetime updates", "Priority support"]);
+    const [usageLicensePrice, setUsageLicensePrice] = useState<string>(initialData?.usageLicensePrice || "");
+    const [sourceLicensePrice, setSourceLicensePrice] = useState<string>(initialData?.sourceLicensePrice || "");
+    const [usageFeatures, setUsageFeatures] = useState<string[]>(initialData?.licenseFeatures?.usage || ["Deploy to production", "Unlimited end users", "Technical support", "Updates for 1 year"]);
+    const [sourceFeatures, setSourceFeatures] = useState<string[]>(initialData?.licenseFeatures?.source || ["Full source code access", "Modify and customize", "Lifetime updates", "Priority support"]);
     const [coverImageError, setCoverImageError] = useState<string | null>(null);
     const [galleryImageError, setGalleryImageError] = useState<string | null>(null);
     const [coverImageSelected, setCoverImageSelected] = useState<boolean>(false);
     const [submitAttempted, setSubmitAttempted] = useState<boolean>(false);
+    const [coverPreviewUrl, setCoverPreviewUrl] = useState<string | null>(null);
+    const [galleryPreviewUrls, setGalleryPreviewUrls] = useState<string[]>([]);
 
-    const coverMissing = !coverImageSelected;
-    const galleryInsufficient = selectedImages < 2;
+    const [removedGalleryImageUrls, setRemovedGalleryImageUrls] = useState<string[]>([]);
+
+    const originalGalleryImages = initialData?.listingImages?.filter((img: any) => img.sortOrder > 0) || [];
+    const remainingGalleryImages = originalGalleryImages.filter((img: any) => !removedGalleryImageUrls.includes(img.url));
+    const totalGalleryImages = remainingGalleryImages.length + selectedImages;
+
+    const coverMissing = !isEditing && !coverImageSelected;
+    const galleryInsufficient = totalGalleryImages < 2;
     const hasImageErrors = !!coverImageError || !!galleryImageError || coverMissing || galleryInsufficient;
+
+    useEffect(() => {
+        return () => {
+            if (coverPreviewUrl) URL.revokeObjectURL(coverPreviewUrl);
+            galleryPreviewUrls.forEach(url => URL.revokeObjectURL(url));
+        };
+    }, [coverPreviewUrl, galleryPreviewUrls]);
 
     const handleCoverImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setCoverImageError(null);
+        if (coverPreviewUrl) URL.revokeObjectURL(coverPreviewUrl);
+        setCoverPreviewUrl(null);
+
         const file = e.target.files?.[0];
         if (file) {
             setCoverImageSelected(true);
+            setCoverPreviewUrl(URL.createObjectURL(file));
             if (file.size > MAX_FILE_SIZE_BYTES) {
                 setCoverImageError(`Cover image is too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Maximum allowed size is ${MAX_FILE_SIZE_MB} MB.`);
             }
@@ -62,8 +85,14 @@ export default function SubmitAssetForm({ categories }: { categories: any[] }) {
 
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setGalleryImageError(null);
+        galleryPreviewUrls.forEach(url => URL.revokeObjectURL(url));
+        setGalleryPreviewUrls([]);
+
         if (e.target.files) {
             const files = Array.from(e.target.files);
+            const urls = files.map(file => URL.createObjectURL(file));
+            setGalleryPreviewUrls(urls);
+
             const oversized = files.filter(f => f.size > MAX_FILE_SIZE_BYTES);
             if (oversized.length > 0) {
                 setGalleryImageError(
@@ -71,6 +100,8 @@ export default function SubmitAssetForm({ categories }: { categories: any[] }) {
                 );
             }
             setSelectedImages(files.length);
+        } else {
+            setSelectedImages(0);
         }
     };
 
@@ -115,6 +146,9 @@ export default function SubmitAssetForm({ categories }: { categories: any[] }) {
                 </div>
             )}
 
+            {isEditing && <input type="hidden" name="assetId" value={initialData.id} />}
+            {isEditing && <input type="hidden" name="removedGalleryImageUrls" value={JSON.stringify(removedGalleryImageUrls)} />}
+
             <div className="grid grid-cols-1 gap-y-6 sm:grid-cols-2 sm:gap-x-8">
                 {/* Basic Info */}
                 <div className="sm:col-span-2">
@@ -127,6 +161,7 @@ export default function SubmitAssetForm({ categories }: { categories: any[] }) {
                             name="name"
                             id="name"
                             required
+                            defaultValue={initialData?.name}
                             placeholder="e.g. AutoGPT Pro"
                             className="block w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-blue-500"
                         />
@@ -146,8 +181,10 @@ export default function SubmitAssetForm({ categories }: { categories: any[] }) {
                             name="slug"
                             id="slug"
                             required
+                            defaultValue={initialData?.slug}
+                            readOnly={isEditing}
                             placeholder="autogpt-pro"
-                            className="block w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-blue-500"
+                            className={`block w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-blue-500 ${isEditing ? "bg-gray-100 cursor-not-allowed opacity-75" : ""}`}
                         />
                     </div>
                     <p className="mt-1 text-xs text-gray-500">Only lowercase letters, numbers, and hyphens.</p>
@@ -165,6 +202,7 @@ export default function SubmitAssetForm({ categories }: { categories: any[] }) {
                             id="categoryId"
                             name="categoryId"
                             required
+                            defaultValue={initialData?.categoryId || ""}
                             className="block w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 focus:border-blue-500 focus:ring-blue-500"
                         >
                             <option value="">Select a category</option>
@@ -191,6 +229,7 @@ export default function SubmitAssetForm({ categories }: { categories: any[] }) {
                             name="description"
                             id="description"
                             required
+                            defaultValue={initialData?.description}
                             placeholder="A brief summary of what your tool does"
                             className="block w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-blue-500"
                         />
@@ -209,6 +248,7 @@ export default function SubmitAssetForm({ categories }: { categories: any[] }) {
                             id="longDescription"
                             name="longDescription"
                             rows={6}
+                            defaultValue={initialData?.longDescription || ""}
                             placeholder="Detailed explanation, features, and setup instructions..."
                             className="block w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-blue-500"
                         />
@@ -362,6 +402,7 @@ export default function SubmitAssetForm({ categories }: { categories: any[] }) {
                             type="number"
                             name="maxLicenses"
                             id="maxLicenses"
+                            defaultValue={initialData?.maxLicenses || ""}
                             placeholder="e.g. 100"
                             min="1"
                             className="block w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-blue-500"
@@ -382,6 +423,7 @@ export default function SubmitAssetForm({ categories }: { categories: any[] }) {
                             type="text"
                             name="techStack"
                             id="techStack"
+                            defaultValue={initialData?.techStack?.join(", ") || ""}
                             placeholder="Next.js, Python, OpenAI"
                             className="block w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-blue-500"
                         />
@@ -393,15 +435,35 @@ export default function SubmitAssetForm({ categories }: { categories: any[] }) {
                     <label htmlFor="coverImage" className="block text-sm font-semibold text-gray-900">
                         Cover Image (Reference / Thumbnail)
                     </label>
-                    <div className="mt-2">
-                        <input
-                            type="file"
-                            name="coverImage"
-                            id="coverImage"
-                            accept="image/*"
-                            onChange={handleCoverImageChange}
-                            className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                        />
+                    {isEditing && initialData.thumbnailUrl && !coverPreviewUrl && (
+                        <div className="mt-2 mb-4">
+                            <p className="text-sm text-gray-500 mb-2">Current Cover Image:</p>
+                            <Image src={initialData.thumbnailUrl} alt="Cover" width={192} height={128} unoptimized className="h-32 w-48 object-cover rounded-lg border border-gray-200" />
+                            <p className="text-xs text-gray-500 mt-2">Upload a new image below to replace the current cover.</p>
+                        </div>
+                    )}
+                    {coverPreviewUrl && (
+                        <div className="mt-2 mb-4">
+                            <p className="text-sm text-gray-500 mb-2">New Cover Selection:</p>
+                            <Image src={coverPreviewUrl} alt="Cover Preview" width={192} height={128} unoptimized className="h-32 w-48 object-cover rounded-lg border border-gray-200 ring-2 ring-blue-500" />
+                            <p className="text-xs text-blue-600 mt-2">This image will replace the current cover upon saving.</p>
+                        </div>
+                    )}
+                    <div className="mt-2 flex items-center">
+                        <label htmlFor="coverImage" className="cursor-pointer inline-flex items-center justify-center rounded-full bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-100 transition-colors">
+                            {isEditing && !!initialData.thumbnailUrl ? "Replace Cover Image" : "Choose File"}
+                            <input
+                                type="file"
+                                name="coverImage"
+                                id="coverImage"
+                                accept="image/*"
+                                onChange={handleCoverImageChange}
+                                className="hidden"
+                            />
+                        </label>
+                        <span className="ml-4 text-sm text-gray-500">
+                            {coverPreviewUrl ? "New file selected" : "No file chosen"}
+                        </span>
                     </div>
                     <p className="mt-1 text-xs text-gray-500">Required. Main image shown on cards and the asset page. Max {MAX_FILE_SIZE_MB} MB.</p>
                     {coverImageError && (
@@ -413,24 +475,65 @@ export default function SubmitAssetForm({ categories }: { categories: any[] }) {
                     <label htmlFor="galleryImages" className="block text-sm font-semibold text-gray-900">
                         Gallery Images
                     </label>
-                    <div className="mt-2">
-                        <input
-                            type="file"
-                            name="galleryImages"
-                            id="galleryImages"
-                            multiple
-                            accept="image/*"
-                            onChange={handleImageChange}
-                            className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                        />
+                    {isEditing && originalGalleryImages.length > 0 && (
+                        <div className="mt-2 mb-4">
+                            <p className="text-sm text-gray-500 mb-2">Current Gallery Images:</p>
+                            <div className="flex flex-wrap gap-4">
+                                {originalGalleryImages.map((img: any) => {
+                                    if (removedGalleryImageUrls.includes(img.url)) return null;
+                                    return (
+                                        <div key={img.id} className="relative group">
+                                            <Image src={img.url} alt="Gallery" width={144} height={96} unoptimized className="h-24 w-36 object-cover rounded-lg border border-gray-200" />
+                                            <button
+                                                type="button"
+                                                onClick={() => setRemovedGalleryImageUrls([...removedGalleryImageUrls, img.url])}
+                                                className="absolute -top-2 -right-2 flex items-center justify-center w-6 h-6 bg-white text-red-600 font-bold rounded-full border border-gray-200 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50"
+                                                title="Remove image"
+                                            >
+                                                ✕
+                                            </button>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+                    {galleryPreviewUrls.length > 0 && (
+                        <div className="mt-2 mb-4">
+                            <p className="text-sm text-gray-500 mb-2">New Gallery Additions:</p>
+                            <div className="flex flex-wrap gap-4">
+                                {galleryPreviewUrls.map((url, i) => (
+                                    <div key={`preview-${i}`} className="relative">
+                                        <Image src={url} alt={`Preview ${i + 1}`} width={144} height={96} unoptimized className="h-24 w-36 object-cover rounded-lg border border-gray-200 ring-2 ring-blue-500" />
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                    <div className="mt-2 flex items-center">
+                        <label htmlFor="galleryImages" className="cursor-pointer inline-flex items-center justify-center rounded-full bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-100 transition-colors">
+                            {isEditing && originalGalleryImages.length > 0 ? "Add More Images" : "Choose Files"}
+                            <input
+                                type="file"
+                                name="galleryImages"
+                                id="galleryImages"
+                                multiple
+                                accept="image/*"
+                                onChange={handleImageChange}
+                                className="hidden"
+                            />
+                        </label>
+                        <span className="ml-4 text-sm text-gray-500">
+                            {galleryPreviewUrls.length > 0 ? `${galleryPreviewUrls.length} file(s) selected` : "No files chosen"}
+                        </span>
                     </div>
-                    <p className="mt-1 text-xs text-gray-500">Required — at least 2 screenshots or promotional images. Max {MAX_FILE_SIZE_MB} MB each.</p>
+                    <p className="mt-1 text-xs text-gray-500">Required — at least 2 screenshots or promotional images total. Max {MAX_FILE_SIZE_MB} MB each.</p>
                     {galleryImageError && (
                         <p className="mt-1 text-sm text-red-600">⚠️ {galleryImageError}</p>
                     )}
-                    {selectedImages > 0 && !galleryImageError && (
-                        <p className={`mt-2 text-sm font-medium ${selectedImages >= 2 ? 'text-green-600' : 'text-amber-600'}`}>
-                            {selectedImages} image{selectedImages !== 1 ? 's' : ''} selected{selectedImages < 2 ? ` — please add at least ${2 - selectedImages} more` : ' ✓'}
+                    {(totalGalleryImages > 0 || selectedImages > 0) && !galleryImageError && (
+                        <p className={`mt-2 text-sm font-medium ${totalGalleryImages >= 2 ? 'text-green-600' : 'text-amber-600'}`}>
+                            {totalGalleryImages} image{totalGalleryImages !== 1 ? 's' : ''} present/selected{totalGalleryImages < 2 ? ` — please add at least ${2 - totalGalleryImages} more` : ' ✓'}
                         </p>
                     )}
                 </div>
@@ -446,6 +549,7 @@ export default function SubmitAssetForm({ categories }: { categories: any[] }) {
                             type="url"
                             name="demoUrl"
                             id="demoUrl"
+                            defaultValue={initialData?.demoUrl || ""}
                             placeholder="https://demo.example.com"
                             className="block w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-blue-500"
                         />
@@ -464,6 +568,7 @@ export default function SubmitAssetForm({ categories }: { categories: any[] }) {
                             type="url"
                             name="githubUrl"
                             id="githubUrl"
+                            defaultValue={initialData?.githubUrl || ""}
                             placeholder="https://github.com/..."
                             className="block w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-blue-500"
                         />
@@ -483,7 +588,7 @@ export default function SubmitAssetForm({ categories }: { categories: any[] }) {
                     disabled={hasImageErrors}
                     className="inline-flex justify-center rounded-lg bg-blue-600 px-10 py-4 text-base font-bold text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                    Submit for Review
+                    {isEditing ? "Save Changes" : "Submit for Review"}
                 </button>
             </div>
         </form>

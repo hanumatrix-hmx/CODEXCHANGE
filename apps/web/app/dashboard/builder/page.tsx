@@ -223,7 +223,7 @@ export default function BuilderOverviewPage() {
                                             </td>
                                             <td className="px-6 py-4 text-right">
                                                 <div className="flex items-center justify-end gap-1">
-                                                    <Link href={`/dashboard/builder/listings/${asset.id}/edit`}>
+                                                    <Link href={`/asset/${asset.slug}/edit`}>
                                                         <Button variant="ghost" size="sm" className="!p-0 h-8 w-8 rounded-lg text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-500/10">
                                                             <Pencil className="h-4 w-4" />
                                                         </Button>
