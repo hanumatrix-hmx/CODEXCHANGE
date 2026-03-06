@@ -4,6 +4,7 @@ import { db, assets, listingImages } from "@codexchange/db";
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { eq, inArray, and } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 const assetSchema = z.object({
@@ -164,5 +165,165 @@ export async function submitAsset(_prevState: any, formData: FormData): Promise<
     revalidatePath("/admin/assets");
     revalidatePath("/browse");
 
-    return redirect("/dashboard?message=Asset submitted successfully and is pending review.");
+    return redirect("/dashboard/builder?message=Asset submitted successfully and is pending review.");
+}
+
+export async function updateAsset(_prevState: any, formData: FormData): Promise<FormState> {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+        throw new Error("You must be logged in to update an asset");
+    }
+
+    const assetId = formData.get("assetId") as string;
+    if (!assetId) {
+        throw new Error("Asset ID is required.");
+    }
+
+    const [existingAsset] = await db.select().from(assets).where(eq(assets.id, assetId));
+    if (!existingAsset || existingAsset.builderId !== user.id) {
+        throw new Error("Unauthorized to edit this asset");
+    }
+
+    const rawData = {
+        name: formData.get("name") as string,
+        slug: existingAsset.slug, // Keep existing slug
+        categoryId: formData.get("categoryId") as string,
+        description: formData.get("description") as string,
+        longDescription: formData.get("longDescription") as string,
+        usageLicensePrice: formData.get("usageLicensePrice") as string,
+        sourceLicensePrice: formData.get("sourceLicensePrice") as string,
+        maxLicenses: formData.get("maxLicenses") as string,
+        techStack: formData.get("techStack") as string,
+        demoUrl: formData.get("demoUrl") as string,
+        githubUrl: formData.get("githubUrl") as string,
+        licenseFeatures: formData.get("licenseFeatures") as string,
+    };
+
+    const validated = assetSchema.safeParse(rawData);
+
+    if (!validated.success) {
+        return {
+            error: validated.error.flatten().fieldErrors,
+        };
+    }
+
+    const { techStack, slug, ...rest } = validated.data;
+
+    const coverImageFile = formData.get("coverImage") as File | null;
+    const galleryImageFiles = formData.getAll("galleryImages") as File[];
+    const validGalleryImages = galleryImageFiles.filter(file => file.size > 0 && file.type.startsWith("image/"));
+
+    // Handle removed images
+    const removedGalleryImageUrlsStr = formData.get("removedGalleryImageUrls") as string;
+    if (removedGalleryImageUrlsStr) {
+        try {
+            const removedUrls = JSON.parse(removedGalleryImageUrlsStr) as string[];
+            if (removedUrls.length > 0) {
+                await db.delete(listingImages).where(inArray(listingImages.url, removedUrls));
+
+                // Optional: remove from storage
+                const pathsToRemove = removedUrls.map(url => {
+                    const match = url.split("/listing-images/")[1];
+                    return match;
+                }).filter(Boolean) as string[];
+
+                if (pathsToRemove.length > 0) {
+                    await supabase.storage.from("listing-images").remove(pathsToRemove);
+                }
+            }
+        } catch (e) {
+            console.error("Failed to parse removed gallery images", e);
+        }
+    }
+
+    let updatedThumbnailUrl = existingAsset.thumbnailUrl;
+    const uploadedImageUrls: { url: string, sortOrder: number }[] = [];
+
+    try {
+        if (coverImageFile && coverImageFile.size > 0 && coverImageFile.type.startsWith("image/")) {
+            const fileExt = coverImageFile.name.split(".").pop();
+            const fileName = `${user.id}/${existingAsset.slug}/cover-${Date.now()}.${fileExt}`;
+
+            const { error: uploadError } = await supabase.storage
+                .from("listing-images")
+                .upload(fileName, coverImageFile);
+
+            if (!uploadError) {
+                const { data: { publicUrl } } = supabase.storage
+                    .from("listing-images")
+                    .getPublicUrl(fileName);
+
+                uploadedImageUrls.push({ url: publicUrl, sortOrder: 0 });
+                updatedThumbnailUrl = publicUrl;
+
+                // Delete old cover image from DB
+                const [oldCover] = await db.select().from(listingImages).where(
+                    and(eq(listingImages.assetId, assetId), eq(listingImages.sortOrder, 0))
+                );
+                if (oldCover) {
+                    await db.delete(listingImages).where(eq(listingImages.id, oldCover.id));
+                    const match = oldCover.url.split("/listing-images/")[1];
+                    if (match) {
+                        await supabase.storage.from("listing-images").remove([match]);
+                    }
+                }
+            }
+        }
+
+        // Upload Gallery Images
+        // Find max current sortOrder
+        let nextSortOrder = 1;
+        const currentImages = await db.select().from(listingImages).where(eq(listingImages.assetId, assetId));
+        if (currentImages.length > 0) {
+            nextSortOrder = Math.max(...currentImages.map(i => i.sortOrder)) + 1;
+        }
+
+        for (let i = 0; i < validGalleryImages.length; i++) {
+            const file = validGalleryImages[i];
+            const fileExt = file.name.split('.').pop();
+            const fileName = `${user.id}/${existingAsset.slug}/gallery-${Date.now()}-${i}.${fileExt}`;
+
+            const { error: uploadError } = await supabase.storage
+                .from("listing-images")
+                .upload(fileName, file);
+
+            if (!uploadError) {
+                const { data: { publicUrl } } = supabase.storage
+                    .from("listing-images")
+                    .getPublicUrl(fileName);
+
+                uploadedImageUrls.push({ url: publicUrl, sortOrder: nextSortOrder + i });
+            }
+        }
+
+        await db.update(assets).set({
+            ...rest,
+            techStack: techStack ? techStack.split(",").map(s => s.trim()) : [],
+            thumbnailUrl: updatedThumbnailUrl,
+            updatedAt: new Date(),
+        }).where(eq(assets.id, assetId));
+
+        if (uploadedImageUrls.length > 0) {
+            await db.insert(listingImages).values(
+                uploadedImageUrls.map(img => ({
+                    assetId,
+                    url: img.url,
+                    sortOrder: img.sortOrder,
+                }))
+            );
+        }
+    } catch (error: any) {
+        console.error("Failed to update asset:", error);
+        return {
+            error: { _form: ["Failed to update asset. Please try again."] },
+        };
+    }
+
+    revalidatePath("/admin/assets");
+    revalidatePath("/browse");
+    revalidatePath(`/asset/${existingAsset.slug}`);
+
+    return redirect("/dashboard/builder?message=Asset updated successfully.");
 }
