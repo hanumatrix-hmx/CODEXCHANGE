@@ -2,10 +2,10 @@
 
 import { useActionState } from "react";
 import { submitAsset, updateAsset, type FormState } from "./actions";
-import { useState, useEffect } from "react";
-import Image from "next/image";
+import { useState } from "react";
 import TagInput from "./tag-input";
-
+import ImageGallery from "./image-gallery";
+import React from "react";
 const initialState: FormState = {
     error: {},
     message: null,
@@ -31,80 +31,36 @@ function calculateEarnings(price: number) {
 }
 
 const MAX_FILE_SIZE_MB = 4;
-const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
 export default function SubmitAssetForm({ categories, initialData }: { categories: any[], initialData?: any }) {
     const isEditing = !!initialData;
     const action = isEditing ? updateAsset : submitAsset;
     const [state, formAction] = useActionState(action, initialState);
 
-    const [selectedImages, setSelectedImages] = useState<number>(0);
     const [usageLicensePrice, setUsageLicensePrice] = useState<string>(initialData?.usageLicensePrice || "");
     const [sourceLicensePrice, setSourceLicensePrice] = useState<string>(initialData?.sourceLicensePrice || "");
     const [usageFeatures, setUsageFeatures] = useState<string[]>(initialData?.licenseFeatures?.usage || ["Deploy to production", "Unlimited end users", "Technical support", "Updates for 1 year"]);
     const [sourceFeatures, setSourceFeatures] = useState<string[]>(initialData?.licenseFeatures?.source || ["Full source code access", "Modify and customize", "Lifetime updates", "Priority support"]);
-    const [coverImageError, setCoverImageError] = useState<string | null>(null);
-    const [galleryImageError, setGalleryImageError] = useState<string | null>(null);
-    const [coverImageSelected, setCoverImageSelected] = useState<boolean>(false);
+
+    const [galleryHasError, setGalleryHasError] = useState<boolean>(!isEditing);
     const [submitAttempted, setSubmitAttempted] = useState<boolean>(false);
-    const [coverPreviewUrl, setCoverPreviewUrl] = useState<string | null>(null);
-    const [galleryPreviewUrls, setGalleryPreviewUrls] = useState<string[]>([]);
 
-    const [removedGalleryImageUrls, setRemovedGalleryImageUrls] = useState<string[]>([]);
+    // Add states for tracking dirty status
+    const [imagesChanged, setImagesChanged] = useState<boolean>(false);
+    const [formChanged, setFormChanged] = useState<boolean>(false);
 
-    const originalGalleryImages = initialData?.listingImages?.filter((img: any) => img.sortOrder > 0) || [];
-    const remainingGalleryImages = originalGalleryImages.filter((img: any) => !removedGalleryImageUrls.includes(img.url));
-    const totalGalleryImages = remainingGalleryImages.length + selectedImages;
+    const initialImages = React.useMemo(() => {
+        if (!initialData?.listingImages) return [];
+        return [...initialData.listingImages]
+            .sort((a: any, b: any) => a.sortOrder - b.sortOrder)
+            .map((img: any) => ({
+                id: img.id,
+                type: "existing" as const,
+                url: img.url
+            }));
+    }, [initialData]);
 
-    const coverMissing = !isEditing && !coverImageSelected;
-    const galleryInsufficient = totalGalleryImages < 2;
-    const hasImageErrors = !!coverImageError || !!galleryImageError || coverMissing || galleryInsufficient;
-
-    useEffect(() => {
-        return () => {
-            if (coverPreviewUrl) URL.revokeObjectURL(coverPreviewUrl);
-            galleryPreviewUrls.forEach(url => URL.revokeObjectURL(url));
-        };
-    }, [coverPreviewUrl, galleryPreviewUrls]);
-
-    const handleCoverImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setCoverImageError(null);
-        if (coverPreviewUrl) URL.revokeObjectURL(coverPreviewUrl);
-        setCoverPreviewUrl(null);
-
-        const file = e.target.files?.[0];
-        if (file) {
-            setCoverImageSelected(true);
-            setCoverPreviewUrl(URL.createObjectURL(file));
-            if (file.size > MAX_FILE_SIZE_BYTES) {
-                setCoverImageError(`Cover image is too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Maximum allowed size is ${MAX_FILE_SIZE_MB} MB.`);
-            }
-        } else {
-            setCoverImageSelected(false);
-        }
-    };
-
-    const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setGalleryImageError(null);
-        galleryPreviewUrls.forEach(url => URL.revokeObjectURL(url));
-        setGalleryPreviewUrls([]);
-
-        if (e.target.files) {
-            const files = Array.from(e.target.files);
-            const urls = files.map(file => URL.createObjectURL(file));
-            setGalleryPreviewUrls(urls);
-
-            const oversized = files.filter(f => f.size > MAX_FILE_SIZE_BYTES);
-            if (oversized.length > 0) {
-                setGalleryImageError(
-                    `${oversized.length} file(s) exceed the ${MAX_FILE_SIZE_MB} MB limit: ${oversized.map(f => `${f.name} (${(f.size / 1024 / 1024).toFixed(1)} MB)`).join(", ")}. Please remove them and re-select.`
-                );
-            }
-            setSelectedImages(files.length);
-        } else {
-            setSelectedImages(0);
-        }
-    };
+    const hasImageErrors = galleryHasError;
 
     const addFeature = (type: 'usage' | 'source') => {
         if (type === 'usage') setUsageFeatures([...usageFeatures, ""]);
@@ -133,8 +89,15 @@ export default function SubmitAssetForm({ categories, initialData }: { categorie
         }
     };
 
+    const handleFormChange = () => {
+        if (!isEditing) return; // Only care about changes during editing
+        setFormChanged(true);
+    };
+
+    const isSaveDisabled = isEditing && !formChanged && !imagesChanged;
+
     return (
-        <form action={formAction} className="space-y-8" onSubmit={(e) => { setSubmitAttempted(true); if (hasImageErrors) e.preventDefault(); }}>
+        <form action={formAction} className="space-y-8" onChange={handleFormChange} onSubmit={(e) => { setSubmitAttempted(true); if (hasImageErrors) e.preventDefault(); }}>
             {state?.error?._form && (
                 <div className="rounded-md bg-red-50 p-4">
                     <div className="flex">
@@ -148,7 +111,6 @@ export default function SubmitAssetForm({ categories, initialData }: { categorie
             )}
 
             {isEditing && <input type="hidden" name="assetId" value={initialData.id} />}
-            {isEditing && <input type="hidden" name="removedGalleryImageUrls" value={JSON.stringify(removedGalleryImageUrls)} />}
 
             <div className="grid grid-cols-1 gap-y-6 sm:grid-cols-2 sm:gap-x-8">
                 {/* Basic Info */}
@@ -318,10 +280,10 @@ export default function SubmitAssetForm({ categories, initialData }: { categorie
                                         className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                                         placeholder="e.g. Deploy to production"
                                     />
-                                    <button type="button" onClick={() => removeFeature('usage', index)} className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full text-gray-400 hover:text-white hover:bg-red-500 transition-colors text-base font-bold">×</button>
+                                    <button type="button" onClick={() => { removeFeature('usage', index); handleFormChange(); }} className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full text-gray-400 hover:text-white hover:bg-red-500 transition-colors text-base font-bold">×</button>
                                 </div>
                             ))}
-                            <button type="button" onClick={() => addFeature('usage')} className="mt-1 inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline">+ Add Feature</button>
+                            <button type="button" onClick={() => { addFeature('usage'); handleFormChange(); }} className="mt-1 inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline">+ Add Feature</button>
                         </div>
                     </div>
                 </div>
@@ -383,10 +345,10 @@ export default function SubmitAssetForm({ categories, initialData }: { categorie
                                         className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                                         placeholder="e.g. Full source code access"
                                     />
-                                    <button type="button" onClick={() => removeFeature('source', index)} className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full text-gray-400 hover:text-white hover:bg-red-500 transition-colors text-base font-bold">×</button>
+                                    <button type="button" onClick={() => { removeFeature('source', index); handleFormChange(); }} className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full text-gray-400 hover:text-white hover:bg-red-500 transition-colors text-base font-bold">×</button>
                                 </div>
                             ))}
-                            <button type="button" onClick={() => addFeature('source')} className="mt-1 inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline">+ Add Feature</button>
+                            <button type="button" onClick={() => { addFeature('source'); handleFormChange(); }} className="mt-1 inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline">+ Add Feature</button>
                         </div>
                     </div>
                 </div>
@@ -426,112 +388,17 @@ export default function SubmitAssetForm({ categories, initialData }: { categorie
                     <p className="mt-1 text-xs text-gray-500">Press ENTER to add a technology or feature tag. Search applies to existing tags.</p>
                 </div>
 
-                {/* Images */}
+                {/* Unified Images */}
                 <div className="sm:col-span-2">
-                    <label htmlFor="coverImage" className="block text-sm font-semibold text-gray-900">
-                        Cover Image (Reference / Thumbnail)
+                    <label className="block text-sm font-semibold text-gray-900 mb-2">
+                        Asset Images (Cover + Gallery)
                     </label>
-                    {isEditing && initialData.thumbnailUrl && !coverPreviewUrl && (
-                        <div className="mt-2 mb-4">
-                            <p className="text-sm text-gray-500 mb-2">Current Cover Image:</p>
-                            <Image src={initialData.thumbnailUrl} alt="Cover" width={192} height={128} unoptimized className="h-32 w-48 object-cover rounded-lg border border-gray-200" />
-                            <p className="text-xs text-gray-500 mt-2">Upload a new image below to replace the current cover.</p>
-                        </div>
-                    )}
-                    {coverPreviewUrl && (
-                        <div className="mt-2 mb-4">
-                            <p className="text-sm text-gray-500 mb-2">New Cover Selection:</p>
-                            <Image src={coverPreviewUrl} alt="Cover Preview" width={192} height={128} unoptimized className="h-32 w-48 object-cover rounded-lg border border-gray-200 ring-2 ring-blue-500" />
-                            <p className="text-xs text-blue-600 mt-2">This image will replace the current cover upon saving.</p>
-                        </div>
-                    )}
-                    <div className="mt-2 flex items-center">
-                        <label htmlFor="coverImage" className="cursor-pointer inline-flex items-center justify-center rounded-full bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-100 transition-colors">
-                            {isEditing && !!initialData.thumbnailUrl ? "Replace Cover Image" : "Choose File"}
-                            <input
-                                type="file"
-                                name="coverImage"
-                                id="coverImage"
-                                accept="image/*"
-                                onChange={handleCoverImageChange}
-                                className="hidden"
-                            />
-                        </label>
-                        <span className="ml-4 text-sm text-gray-500">
-                            {coverPreviewUrl ? "New file selected" : "No file chosen"}
-                        </span>
-                    </div>
-                    <p className="mt-1 text-xs text-gray-500">Required. Main image shown on cards and the asset page. Max {MAX_FILE_SIZE_MB} MB.</p>
-                    {coverImageError && (
-                        <p className="mt-1 text-sm text-red-600">⚠️ {coverImageError}</p>
-                    )}
-                </div>
-
-                <div className="sm:col-span-2">
-                    <label htmlFor="galleryImages" className="block text-sm font-semibold text-gray-900">
-                        Gallery Images
-                    </label>
-                    {isEditing && originalGalleryImages.length > 0 && (
-                        <div className="mt-2 mb-4">
-                            <p className="text-sm text-gray-500 mb-2">Current Gallery Images:</p>
-                            <div className="flex flex-wrap gap-4">
-                                {originalGalleryImages.map((img: any) => {
-                                    if (removedGalleryImageUrls.includes(img.url)) return null;
-                                    return (
-                                        <div key={img.id} className="relative group">
-                                            <Image src={img.url} alt="Gallery" width={144} height={96} unoptimized className="h-24 w-36 object-cover rounded-lg border border-gray-200" />
-                                            <button
-                                                type="button"
-                                                onClick={() => setRemovedGalleryImageUrls([...removedGalleryImageUrls, img.url])}
-                                                className="absolute -top-2 -right-2 flex items-center justify-center w-6 h-6 bg-white text-red-600 font-bold rounded-full border border-gray-200 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50"
-                                                title="Remove image"
-                                            >
-                                                ✕
-                                            </button>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    )}
-                    {galleryPreviewUrls.length > 0 && (
-                        <div className="mt-2 mb-4">
-                            <p className="text-sm text-gray-500 mb-2">New Gallery Additions:</p>
-                            <div className="flex flex-wrap gap-4">
-                                {galleryPreviewUrls.map((url, i) => (
-                                    <div key={`preview-${i}`} className="relative">
-                                        <Image src={url} alt={`Preview ${i + 1}`} width={144} height={96} unoptimized className="h-24 w-36 object-cover rounded-lg border border-gray-200 ring-2 ring-blue-500" />
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-                    <div className="mt-2 flex items-center">
-                        <label htmlFor="galleryImages" className="cursor-pointer inline-flex items-center justify-center rounded-full bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-100 transition-colors">
-                            {isEditing && originalGalleryImages.length > 0 ? "Add More Images" : "Choose Files"}
-                            <input
-                                type="file"
-                                name="galleryImages"
-                                id="galleryImages"
-                                multiple
-                                accept="image/*"
-                                onChange={handleImageChange}
-                                className="hidden"
-                            />
-                        </label>
-                        <span className="ml-4 text-sm text-gray-500">
-                            {galleryPreviewUrls.length > 0 ? `${galleryPreviewUrls.length} file(s) selected` : "No files chosen"}
-                        </span>
-                    </div>
-                    <p className="mt-1 text-xs text-gray-500">Required — at least 2 screenshots or promotional images total. Max {MAX_FILE_SIZE_MB} MB each.</p>
-                    {galleryImageError && (
-                        <p className="mt-1 text-sm text-red-600">⚠️ {galleryImageError}</p>
-                    )}
-                    {(totalGalleryImages > 0 || selectedImages > 0) && !galleryImageError && (
-                        <p className={`mt-2 text-sm font-medium ${totalGalleryImages >= 2 ? 'text-green-600' : 'text-amber-600'}`}>
-                            {totalGalleryImages} image{totalGalleryImages !== 1 ? 's' : ''} present/selected{totalGalleryImages < 2 ? ` — please add at least ${2 - totalGalleryImages} more` : ' ✓'}
-                        </p>
-                    )}
+                    <ImageGallery
+                        initialImages={initialImages}
+                        onErrorStateChange={setGalleryHasError}
+                        onImagesChange={setImagesChanged}
+                        maxFileSizeMB={MAX_FILE_SIZE_MB}
+                    />
                 </div>
 
 
@@ -576,12 +443,15 @@ export default function SubmitAssetForm({ categories, initialData }: { categorie
             </div>
 
             <div className="flex items-center justify-end gap-4 border-t border-gray-200 pt-8">
+                {isSaveDisabled && (
+                    <p className="text-sm text-gray-500">No changes detected.</p>
+                )}
                 {submitAttempted && hasImageErrors && (
                     <p className="text-sm text-red-600">⚠️ Please fix image errors before submitting.</p>
                 )}
                 <button
                     type="submit"
-                    disabled={hasImageErrors}
+                    disabled={hasImageErrors || isSaveDisabled}
                     className="inline-flex justify-center rounded-lg bg-blue-600 px-10 py-4 text-base font-bold text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     {isEditing ? "Save Changes" : "Submit for Review"}
