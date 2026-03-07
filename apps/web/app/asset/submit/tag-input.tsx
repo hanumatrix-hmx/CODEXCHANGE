@@ -129,6 +129,7 @@ export default function TagInput({ initialTags = [], maxTags = 10 }: TagInputPro
                 ))}
 
                 <input
+                    id="tags"
                     type="text"
                     value={inputValue}
                     onChange={(e) => setInputValue(e.target.value)}

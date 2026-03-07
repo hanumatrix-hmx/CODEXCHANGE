@@ -87,57 +87,48 @@ export async function submitAsset(_prevState: any, formData: FormData): Promise<
     const { ...rest } = validated.data;
 
     // Handle image uploads
-    const coverImageFile = formData.get("coverImage") as File;
-    const galleryImageFiles = formData.getAll("galleryImages") as File[];
+    const newImageFiles = formData.getAll("newImages") as File[];
+    const validNewImages = newImageFiles.filter(file => file.size > 0 && file.type.startsWith("image/"));
 
-    const validGalleryImages = galleryImageFiles.filter(file => file.size > 0 && file.type.startsWith("image/"));
+    const imageOrderStr = formData.get("imageOrder") as string;
+    let imageOrder: { type: 'existing' | 'new', url?: string, fileIndex?: number }[] = [];
+    if (imageOrderStr) {
+        try {
+            imageOrder = JSON.parse(imageOrderStr);
+        } catch (e) {
+            console.error("Invalid image order format");
+        }
+    }
 
     const uploadedImageUrls: { url: string, sortOrder: number }[] = [];
 
     try {
-        // Upload Cover Image
-        if (coverImageFile && coverImageFile.size > 0 && coverImageFile.type.startsWith("image/")) {
-            const fileExt = coverImageFile.name.split(".").pop();
-            const fileName = `${user.id}/${rest.slug}/cover-${Date.now()}.${fileExt}`;
+        // Upload images based on order
+        for (let i = 0; i < imageOrder.length; i++) {
+            const item = imageOrder[i];
 
-            const { error: uploadError } = await supabase.storage
-                .from("listing-images")
-                .upload(fileName, coverImageFile);
+            if (item.type === 'new' && item.fileIndex !== undefined && item.fileIndex < validNewImages.length) {
+                const file = validNewImages[item.fileIndex];
+                const fileExt = file.name.split(".").pop();
+                const prefix = i === 0 ? "cover" : "gallery";
+                const fileName = `${user.id}/${rest.slug}/${prefix}-${Date.now()}-${i}.${fileExt}`;
 
-            if (!uploadError) {
-                const { data: { publicUrl } } = supabase.storage
+                const { error: uploadError } = await supabase.storage
                     .from("listing-images")
-                    .getPublicUrl(fileName);
+                    .upload(fileName, file);
 
-                // Cover image is always sortOrder 0
-                uploadedImageUrls.push({ url: publicUrl, sortOrder: 0 });
-            } else {
-                console.error("Error uploading cover image! File:", fileName, "Error:", uploadError);
+                if (!uploadError) {
+                    const { data: { publicUrl } } = supabase.storage
+                        .from("listing-images")
+                        .getPublicUrl(fileName);
+
+                    uploadedImageUrls.push({ url: publicUrl, sortOrder: i });
+                } else {
+                    console.error("Error uploading image:", uploadError);
+                }
+            } else if (item.type === 'existing' && item.url) {
+                uploadedImageUrls.push({ url: item.url, sortOrder: i });
             }
-        }
-
-        // Upload Gallery Images
-        for (let i = 0; i < validGalleryImages.length; i++) {
-            const file = validGalleryImages[i];
-            const fileExt = file.name.split('.').pop();
-            const fileName = `${user.id}/${rest.slug}/gallery-${Date.now()}-${i}.${fileExt}`;
-
-            const { error: uploadError } = await supabase.storage
-                .from("listing-images")
-                .upload(fileName, file);
-
-            if (uploadError) {
-                console.error("Error uploading gallery image:", uploadError);
-                console.error("Failed File:", fileName);
-                continue;
-            }
-
-            const { data: { publicUrl } } = supabase.storage
-                .from("listing-images")
-                .getPublicUrl(fileName);
-
-            // Gallery images start from sortOrder 1
-            uploadedImageUrls.push({ url: publicUrl, sortOrder: i + 1 });
         }
 
         const [newAsset] = await db.insert(assets).values({
@@ -252,90 +243,67 @@ export async function updateAsset(_prevState: any, formData: FormData): Promise<
 
     const { slug, ...rest } = validated.data;
 
-    const coverImageFile = formData.get("coverImage") as File | null;
-    const galleryImageFiles = formData.getAll("galleryImages") as File[];
-    const validGalleryImages = galleryImageFiles.filter(file => file.size > 0 && file.type.startsWith("image/"));
+    const newImageFiles = formData.getAll("newImages") as File[];
+    const validNewImages = newImageFiles.filter(file => file.size > 0 && file.type.startsWith("image/"));
 
-    // Handle removed images
-    const removedGalleryImageUrlsStr = formData.get("removedGalleryImageUrls") as string;
-    if (removedGalleryImageUrlsStr) {
+    const imageOrderStr = formData.get("imageOrder") as string;
+    let imageOrder: { type: 'existing' | 'new', url?: string, fileIndex?: number }[] = [];
+    if (imageOrderStr) {
         try {
-            const removedUrls = JSON.parse(removedGalleryImageUrlsStr) as string[];
-            if (removedUrls.length > 0) {
-                await db.delete(listingImages).where(inArray(listingImages.url, removedUrls));
-
-                // Optional: remove from storage
-                const pathsToRemove = removedUrls.map(url => {
-                    const match = url.split("/listing-images/")[1];
-                    return match;
-                }).filter(Boolean) as string[];
-
-                if (pathsToRemove.length > 0) {
-                    await supabase.storage.from("listing-images").remove(pathsToRemove);
-                }
-            }
+            imageOrder = JSON.parse(imageOrderStr);
         } catch (e) {
-            console.error("Failed to parse removed gallery images", e);
+            console.error("Invalid image order format");
         }
     }
 
     let updatedThumbnailUrl = existingAsset.thumbnailUrl;
-    const uploadedImageUrls: { url: string, sortOrder: number }[] = [];
+    const newImagesToInsert: { url: string, sortOrder: number }[] = [];
 
     try {
-        if (coverImageFile && coverImageFile.size > 0 && coverImageFile.type.startsWith("image/")) {
-            const fileExt = coverImageFile.name.split(".").pop();
-            const fileName = `${user.id}/${existingAsset.slug}/cover-${Date.now()}.${fileExt}`;
+        const existingUrlsToKeep = imageOrder.filter(i => i.type === 'existing' && i.url).map(i => i.url as string);
 
-            const { error: uploadError } = await supabase.storage
-                .from("listing-images")
-                .upload(fileName, coverImageFile);
+        // Find DB records to delete
+        const currentImages = await db.select().from(listingImages).where(eq(listingImages.assetId, assetId));
+        const urlsToDelete = currentImages.map(img => img.url).filter(url => !existingUrlsToKeep.includes(url));
 
-            if (!uploadError) {
-                const { data: { publicUrl } } = supabase.storage
-                    .from("listing-images")
-                    .getPublicUrl(fileName);
-
-                uploadedImageUrls.push({ url: publicUrl, sortOrder: 0 });
-                updatedThumbnailUrl = publicUrl;
-
-                // Delete old cover image from DB
-                const [oldCover] = await db.select().from(listingImages).where(
-                    and(eq(listingImages.assetId, assetId), eq(listingImages.sortOrder, 0))
-                );
-                if (oldCover) {
-                    await db.delete(listingImages).where(eq(listingImages.id, oldCover.id));
-                    const match = oldCover.url.split("/listing-images/")[1];
-                    if (match) {
-                        await supabase.storage.from("listing-images").remove([match]);
-                    }
-                }
+        if (urlsToDelete.length > 0) {
+            await db.delete(listingImages).where(inArray(listingImages.url, urlsToDelete));
+            const pathsToRemove = urlsToDelete.map(url => url.split("/listing-images/")[1]).filter(Boolean) as string[];
+            if (pathsToRemove.length > 0) {
+                await supabase.storage.from("listing-images").remove(pathsToRemove);
             }
         }
 
-        // Upload Gallery Images
-        // Find max current sortOrder
-        let nextSortOrder = 1;
-        const currentImages = await db.select().from(listingImages).where(eq(listingImages.assetId, assetId));
-        if (currentImages.length > 0) {
-            nextSortOrder = Math.max(...currentImages.map(i => i.sortOrder)) + 1;
-        }
+        // Upload new images and update existing order
+        for (let i = 0; i < imageOrder.length; i++) {
+            const item = imageOrder[i];
 
-        for (let i = 0; i < validGalleryImages.length; i++) {
-            const file = validGalleryImages[i];
-            const fileExt = file.name.split('.').pop();
-            const fileName = `${user.id}/${existingAsset.slug}/gallery-${Date.now()}-${i}.${fileExt}`;
+            if (item.type === 'new' && item.fileIndex !== undefined && item.fileIndex < validNewImages.length) {
+                const file = validNewImages[item.fileIndex];
+                const fileExt = file.name.split(".").pop();
+                const prefix = i === 0 ? "cover" : "gallery";
+                const fileName = `${user.id}/${existingAsset.slug}/${prefix}-${Date.now()}-${i}.${fileExt}`;
 
-            const { error: uploadError } = await supabase.storage
-                .from("listing-images")
-                .upload(fileName, file);
-
-            if (!uploadError) {
-                const { data: { publicUrl } } = supabase.storage
+                const { error: uploadError } = await supabase.storage
                     .from("listing-images")
-                    .getPublicUrl(fileName);
+                    .upload(fileName, file);
 
-                uploadedImageUrls.push({ url: publicUrl, sortOrder: nextSortOrder + i });
+                if (!uploadError) {
+                    const { data: { publicUrl } } = supabase.storage
+                        .from("listing-images")
+                        .getPublicUrl(fileName);
+
+                    newImagesToInsert.push({ url: publicUrl, sortOrder: i });
+                    if (i === 0) updatedThumbnailUrl = publicUrl;
+                } else {
+                    console.error("Error uploading image:", uploadError);
+                }
+            } else if (item.type === 'existing' && item.url) {
+                await db.update(listingImages)
+                    .set({ sortOrder: i })
+                    .where(and(eq(listingImages.assetId, assetId), eq(listingImages.url, item.url)));
+
+                if (i === 0) updatedThumbnailUrl = item.url;
             }
         }
 
@@ -345,9 +313,9 @@ export async function updateAsset(_prevState: any, formData: FormData): Promise<
             updatedAt: new Date(),
         }).where(eq(assets.id, assetId));
 
-        if (uploadedImageUrls.length > 0) {
+        if (newImagesToInsert.length > 0) {
             await db.insert(listingImages).values(
-                uploadedImageUrls.map(img => ({
+                newImagesToInsert.map(img => ({
                     assetId,
                     url: img.url,
                     sortOrder: img.sortOrder,
