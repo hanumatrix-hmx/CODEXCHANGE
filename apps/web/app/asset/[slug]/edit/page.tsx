@@ -4,6 +4,7 @@ import MarketplaceLayout from "@/components/marketplace-layout";
 import { redirect, notFound } from "next/navigation";
 import { createClient } from "@/utils/supabase/server";
 import { eq } from "drizzle-orm";
+import { BackButton } from "../../submit/back-button";
 
 export default async function EditAssetPage({ params }: { params: any }) {
     const resolvedParams = await Promise.resolve(params);
@@ -44,15 +45,16 @@ export default async function EditAssetPage({ params }: { params: any }) {
 
     return (
         <MarketplaceLayout>
-            <div className="mx-auto max-w-4xl py-12">
+            <div className="mx-auto max-w-4xl py-12 px-4 sm:px-6 lg:px-8">
                 <div className="mb-8">
-                    <h1 className="text-3xl font-bold tracking-tight text-gray-900">Edit Tool: {assetData.name}</h1>
-                    <p className="mt-2 text-lg text-gray-600">
+                    <BackButton />
+                    <h1 className="text-4xl font-extrabold tracking-tight text-gray-900 dark:text-white sm:text-5xl">Edit Tool: {assetData.name}</h1>
+                    <p className="mt-4 text-lg text-gray-500 dark:text-gray-400 max-w-2xl">
                         Update your asset details, images, or pricing. Note: URLs cannot be changed after initial publication.
                     </p>
                 </div>
 
-                <div className="rounded-2xl border border-gray-200 bg-white p-8 shadow-sm">
+                <div className="rounded-3xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-gray-900/50 backdrop-blur-2xl p-8 sm:p-10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] ring-1 ring-gray-900/5 dark:ring-white/10">
                     <SubmitAssetForm categories={allCategories} initialData={fullAssetData} />
                 </div>
             </div>
