@@ -113,14 +113,14 @@ export default function TagInput({ initialTags = [], maxTags = 10 }: TagInputPro
 
     return (
         <div className="w-full relative" ref={wrapperRef}>
-            <div className={`p-2 bg-white border rounded-lg flex flex-wrap gap-2 items-center focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 min-h-[48px] ${tags.length >= maxTags ? "bg-gray-50 bg-opacity-50" : ""}`}>
+            <div className={`p-2 bg-white/50 dark:bg-white/5 backdrop-blur-sm border border-gray-200 dark:border-white/10 rounded-xl flex flex-wrap gap-2 items-center focus-within:ring-2 focus-within:ring-gray-900 dark:focus-within:ring-white focus-within:border-gray-900 dark:focus-within:border-white min-h-[52px] transition-all shadow-sm ${tags.length >= maxTags ? "bg-gray-50/50 dark:bg-black/20" : ""}`}>
                 {tags.map((tag, index) => (
-                    <span key={index} className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                    <span key={index} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900 shadow-sm">
                         {tag.name}
                         <button
                             type="button"
                             onClick={(e) => { e.preventDefault(); removeTag(index); }}
-                            className="text-blue-600 hover:text-blue-900 focus:outline-none rounded-full ml-1"
+                            className="text-gray-300 hover:text-white dark:text-gray-500 dark:hover:text-gray-900 focus:outline-none rounded-full ml-1 transition-colors flex items-center justify-center w-4 h-4 hover:bg-white/20 dark:hover:bg-black/10"
                             aria-label={`Remove tag ${tag.name}`}
                         >
                             &times;
@@ -136,22 +136,25 @@ export default function TagInput({ initialTags = [], maxTags = 10 }: TagInputPro
                     onKeyDown={handleKeyDown}
                     disabled={tags.length >= maxTags}
                     placeholder={tags.length === 0 ? "e.g. react, nextjs, api..." : tags.length >= maxTags ? `Maximum ${maxTags} tags reached` : "Add another tag..."}
-                    className="flex-1 min-w-[120px] outline-none bg-transparent placeholder-gray-400 text-gray-900 text-sm py-1 disabled:cursor-not-allowed"
+                    className="flex-1 min-w-[120px] outline-none bg-transparent placeholder-gray-400 dark:placeholder-gray-500 text-gray-900 dark:text-gray-100 text-sm py-1 px-1 disabled:cursor-not-allowed"
                 />
             </div>
 
             <input type="hidden" name="tags" value={JSON.stringify(tags.map(t => t.name))} />
 
             {isOpen && (suggestions.length > 0 || isLoading || (!isLoading && inputValue.trim() && !suggestions.some(s => s.name.toLowerCase() === inputValue.trim().toLowerCase()))) && (
-                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                <div className="absolute z-10 w-full mt-2 bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border border-gray-200 dark:border-white/10 rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] max-h-60 overflow-y-auto overflow-x-hidden p-1">
                     {isLoading ? (
-                        <div className="px-4 py-3 text-sm text-gray-500">Searching...</div>
+                        <div className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400 flex items-center justify-center">
+                            <div className="w-4 h-4 border-2 border-gray-900 dark:border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                            Searching...
+                        </div>
                     ) : (
                         <>
                             {suggestions.map((suggestion, index) => (
                                 <div
                                     key={index}
-                                    className={`px-4 py-2 cursor-pointer text-sm text-gray-700 ${selectedIndex === index ? "bg-gray-100" : "hover:bg-gray-100"}`}
+                                    className={`px-4 py-2.5 mx-1 my-0.5 rounded-lg cursor-pointer text-sm transition-colors ${selectedIndex === index ? "bg-gray-100 dark:bg-white/10 text-gray-900 dark:text-white font-medium" : "text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5"}`}
                                     onClick={() => addTag(suggestion)}
                                 >
                                     {suggestion.name}
@@ -159,10 +162,13 @@ export default function TagInput({ initialTags = [], maxTags = 10 }: TagInputPro
                             ))}
                             {inputValue.trim() && !suggestions.some(s => s.name.toLowerCase() === inputValue.trim().toLowerCase()) && (
                                 <div
-                                    className={`px-4 py-2 cursor-pointer text-sm text-gray-700 italic ${selectedIndex === suggestions.length ? "bg-gray-100" : "hover:bg-gray-100"}`}
+                                    className={`px-4 py-2.5 mx-1 my-0.5 rounded-lg cursor-pointer text-sm transition-colors flex items-center justify-between group ${selectedIndex === suggestions.length ? "bg-gray-100 dark:bg-white/10 text-gray-900 dark:text-white font-medium" : "text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5"}`}
                                     onClick={() => addTag({ name: inputValue.trim().toLowerCase() })}
                                 >
-                                    Create &quot;{inputValue.trim()}&quot;
+                                    <span>Create &quot;<span className="font-semibold">{inputValue.trim()}</span>&quot;</span>
+                                    <span className="text-xs text-gray-400 dark:text-gray-500 opactiy-0 group-hover:opacity-100 flex items-center">
+                                        Press Enter <span className="ml-1 text-base">↵</span>
+                                    </span>
                                 </div>
                             )}
                         </>

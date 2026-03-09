@@ -67,7 +67,7 @@ function SortableImageItem({ image, isCover, onRemove }: SortableImageItemProps)
                 type="button"
                 onPointerDown={(e) => { e.stopPropagation(); }}
                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); onRemove(image.id); }}
-                className="absolute -top-2 -right-2 flex items-center justify-center w-6 h-6 bg-white text-red-600 font-bold rounded-full border border-gray-200 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50 z-20 m-4 cursor-pointer"
+                className="absolute -top-2 -right-2 flex items-center justify-center w-6 h-6 bg-white dark:bg-gray-800 text-red-600 dark:text-red-400 font-bold rounded-full border border-gray-200 dark:border-gray-700 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50 dark:hover:bg-red-900/50 z-20 m-4 cursor-pointer"
                 title="Remove image"
             >
                 ✕
@@ -210,7 +210,7 @@ export default function ImageGallery({
             <input type="file" name="newImages" multiple hidden ref={fileInputRef} />
 
             <div className="flex items-center gap-4 mb-2">
-                <label className={`whitespace-nowrap cursor-pointer inline-flex items-center justify-center rounded-full px-4 py-2 text-sm font-semibold transition-colors ${images.length >= 10 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-blue-50 text-blue-700 hover:bg-blue-100'}`}>
+                <label className={`whitespace-nowrap cursor-pointer inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${images.length >= 10 ? 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 cursor-not-allowed' : 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-200 shadow-sm'}`}>
                     Add Images
                     <input
                         type="file"
@@ -221,15 +221,15 @@ export default function ImageGallery({
                         className="hidden"
                     />
                 </label>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-gray-500 dark:text-gray-400">
                     Drag and drop to reorder. The first image will be used as the cover. Minimum 3, maximum 10 images required.
                 </p>
             </div>
 
             {errorMsg && (
-                <div className="flex items-center justify-between bg-red-50 px-3 py-2 rounded-lg border border-red-100">
-                    <p className="text-sm text-red-600">⚠️ {errorMsg}</p>
-                    <button type="button" onClick={() => setErrorMsg(null)} className="text-red-500 hover:text-red-700 font-bold ml-4">✕</button>
+                <div className="flex items-center justify-between bg-red-50/50 dark:bg-red-900/20 backdrop-blur-sm px-3 py-2 rounded-xl border border-red-200 dark:border-red-900/50">
+                    <p className="text-sm text-red-600 dark:text-red-400">⚠️ {errorMsg}</p>
+                    <button type="button" onClick={() => setErrorMsg(null)} className="text-red-500 hover:text-red-700 dark:hover:text-red-300 font-bold ml-4">✕</button>
                 </div>
             )}
 
@@ -243,7 +243,7 @@ export default function ImageGallery({
                         items={images.map(i => i.id)}
                         strategy={rectSortingStrategy}
                     >
-                        <div className="flex flex-wrap gap-4 p-4 border border-dashed border-gray-300 rounded-xl bg-white min-h-[160px]">
+                        <div className="flex flex-wrap gap-4 p-4 border border-dashed border-gray-300 dark:border-white/20 rounded-2xl bg-white/50 dark:bg-white/5 backdrop-blur-sm min-h-[160px]">
                             {images.map((img, index) => (
                                 <SortableImageItem
                                     key={img.id}
@@ -256,18 +256,18 @@ export default function ImageGallery({
                     </SortableContext>
                 </DndContext>
             ) : (
-                <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-gray-300 rounded-xl bg-gray-50 min-h-[160px]">
-                    <p className="text-gray-500 text-sm">No images added yet.</p>
+                <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-gray-300 dark:border-white/20 rounded-2xl bg-white/50 dark:bg-white/5 backdrop-blur-sm min-h-[160px]">
+                    <p className="text-gray-500 dark:text-gray-400 text-sm">No images added yet.</p>
                 </div>
             )}
 
             {images.length > 0 && images.length < 3 && (
-                <p className="text-sm text-amber-600 font-medium">
+                <p className="text-sm text-amber-600 dark:text-amber-500 font-medium">
                     ⚠️ Please add at least {3 - images.length} more image(s). (1 Cover + 2 Gallery minimum)
                 </p>
             )}
             {images.length >= 3 && (
-                <p className="text-sm text-green-600 font-medium">
+                <p className="text-sm text-green-600 dark:text-emerald-400 font-medium">
                     ✓ {images.length} images set. The first is pinned as Cover.
                 </p>
             )}
