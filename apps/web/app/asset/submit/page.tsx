@@ -3,8 +3,7 @@ import SubmitAssetForm from "./submit-form";
 import MarketplaceLayout from "@/components/marketplace-layout";
 import { redirect } from "next/navigation";
 import { createClient } from "@/utils/supabase/server";
-import Link from "next/link";
-import { ChevronLeft } from "lucide-react";
+import { BackButton } from "./back-button";
 
 export default async function SubmitAssetPage() {
     const supabase = await createClient();
@@ -20,10 +19,7 @@ export default async function SubmitAssetPage() {
         <MarketplaceLayout>
             <div className="mx-auto max-w-4xl py-12 px-4 sm:px-6 lg:px-8">
                 <div className="mb-8">
-                    <Link href="/dashboard/builder" className="inline-flex items-center text-sm font-medium text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100 mb-6 transition-colors">
-                        <ChevronLeft className="w-4 h-4 mr-1" />
-                        Back to Dashboard
-                    </Link>
+                    <BackButton />
                     <h1 className="text-4xl font-extrabold tracking-tight text-gray-900 dark:text-white sm:text-5xl">Submit New Tool</h1>
                     <p className="mt-4 text-lg text-gray-500 dark:text-gray-400 max-w-2xl">
                         Share your creation with the world and start earning revenue from your AI assets. Fill out the details below to get started.
