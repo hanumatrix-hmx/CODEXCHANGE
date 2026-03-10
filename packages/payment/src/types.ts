@@ -5,6 +5,7 @@ export interface CreateOrderRequest {
     buyerEmail: string;
     buyerName: string;
     buyerPhone?: string;
+    paymentMethod?: "upi" | "card" | "netbanking" | "emi";
 }
 
 export interface CreateOrderResponse {

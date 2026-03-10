@@ -26,6 +26,17 @@ export async function createOrder(
     try {
         const orderId = `order_${Date.now()}_${Math.random().toString(36).substring(7)}`;
 
+        let paymentMethodsStr: string | undefined = undefined;
+        if (request.paymentMethod) {
+            const map = {
+                upi: "upi",
+                card: "cc,dc",
+                netbanking: "nb",
+                emi: "emi",
+            };
+            paymentMethodsStr = map[request.paymentMethod];
+        }
+
         const orderRequest = {
             order_amount: orderAmount,
             order_currency: "INR",
@@ -39,6 +50,7 @@ export async function createOrder(
             order_meta: {
                 return_url: returnUrl,
                 notify_url: process.env.CASHFREE_WEBHOOK_URL,
+                ...(paymentMethodsStr ? { payment_methods: paymentMethodsStr } : {}),
             },
             order_note: `Purchase ${request.licenseType} license for asset ${request.assetId}`,
         };

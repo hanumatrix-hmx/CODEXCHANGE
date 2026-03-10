@@ -9,7 +9,7 @@ import { QualityBadge } from "@/components/quality-badge";
 import { PricingCard } from "@/components/pricing-card";
 import { AssetCard } from "@/components/asset-card";
 import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 const ZoomImage = dynamic(() => import("@/components/ui/zoom-image").then(m => m.ZoomImage), { ssr: false });
 
@@ -34,9 +34,12 @@ export default function AssetPage() {
 
     const incrementViews = api.asset.incrementViews.useMutation();
 
+    const hasIncremented = useRef(false);
+
     // Increment view count on client-side after asset loads
     useEffect(() => {
-        if (asset?.id) {
+        if (asset?.id && !hasIncremented.current) {
+            hasIncremented.current = true;
             incrementViews.mutate({ assetId: asset.id });
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -218,6 +221,16 @@ export default function AssetPage() {
                                     }}
                                     features={usageLicenseFeatures}
                                     assetId={asset.id}
+                                    assetName={asset.name}
+                                    otherLicense={asset.sourceLicensePrice ? {
+                                        licenseType: "source",
+                                        price: Number(asset.sourceLicensePrice),
+                                        scarcity: {
+                                            total: asset.maxLicenses || 50,
+                                            remaining: (asset.maxLicenses || 50) - (asset.soldLicenses || 0),
+                                        },
+                                        features: sourceLicenseFeatures,
+                                    } : null}
                                 />
                             )}
                             {asset.sourceLicensePrice && (
@@ -230,6 +243,16 @@ export default function AssetPage() {
                                     }}
                                     features={sourceLicenseFeatures}
                                     assetId={asset.id}
+                                    assetName={asset.name}
+                                    otherLicense={asset.usageLicensePrice ? {
+                                        licenseType: "usage",
+                                        price: Number(asset.usageLicensePrice),
+                                        scarcity: {
+                                            total: asset.maxLicenses || 100,
+                                            remaining: (asset.maxLicenses || 100) - (asset.soldLicenses || 0),
+                                        },
+                                        features: usageLicenseFeatures,
+                                    } : null}
                                 />
                             )}
 

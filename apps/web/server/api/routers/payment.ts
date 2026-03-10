@@ -25,6 +25,7 @@ export const paymentRouter = createTRPCRouter({
             z.object({
                 assetId: z.string(),
                 licenseType: z.enum(["usage", "source"]),
+                paymentMethod: z.enum(["upi", "card", "netbanking", "emi"]).optional(),
             })
         )
         .mutation(async ({ input, ctx }) => {
@@ -122,6 +123,7 @@ export const paymentRouter = createTRPCRouter({
                     buyerId: ctx.user.id,
                     buyerEmail: ctx.user.email,
                     buyerName: ctx.user.name || "",
+                    paymentMethod: input.paymentMethod,
                 },
                 amountTotal,
                 returnUrl
