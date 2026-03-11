@@ -18,6 +18,7 @@ export async function createOrder(data: {
     amountTotal: string;
     cashfreeOrderId: string;
     paymentSessionId: string;
+    buyerGstin?: string;
 }) {
     const [order] = await db
         .insert(orders)

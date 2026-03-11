@@ -179,6 +179,7 @@ export const orders = pgTable("orders", {
     id: uuid("id").primaryKey().defaultRandom(),
     assetId: uuid("asset_id").notNull().references(() => assets.id),
     buyerId: uuid("buyer_id").notNull().references(() => profiles.id),
+    buyerGstin: text("buyer_gstin"),
     builderId: uuid("builder_id").notNull().references(() => profiles.id),
 
     licenseType: text("license_type").notNull(), // usage, source

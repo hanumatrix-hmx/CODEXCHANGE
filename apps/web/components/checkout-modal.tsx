@@ -442,11 +442,16 @@ export function CheckoutModal({
                 throw new Error("Payment SDK not ready. Please wait a moment and try again.");
             }
 
+            if (showGstin && gstin.trim().length > 0 && gstin.trim().length !== 15) {
+                throw new Error("GSTIN must be exactly 15 characters long.");
+            }
+
             // Create the order with the selected payment constraint
             const result = await createOrder.mutateAsync({
                 assetId,
                 licenseType: selectedLicense,
                 paymentMethod,
+                ...(showGstin && gstin.trim().length === 15 ? { buyerGstin: gstin.trim() } : {}),
             });
 
             if (result.isFree) {
@@ -639,16 +644,6 @@ export function CheckoutModal({
                         ) : billing ? (
                             <div className="divide-y divide-white/5 rounded-xl border border-white/8 bg-white/3 px-4">
                                 <BillingRow label="Subtotal" value={`₹${fmt(billing.subtotal)}`} />
-                                <BillingRow
-                                    label="Platform fee"
-                                    value={`₹${fmt(billing.platformFee)}`}
-                                    sub="16% of subtotal (paid by builder)"
-                                />
-                                <BillingRow
-                                    label="GST on service fee"
-                                    value={`₹${fmt(billing.gst)}`}
-                                    sub="18% on platform fee"
-                                />
                                 <BillingRow
                                     label="TCS"
                                     value={`₹${fmt(billing.tcs)}`}
