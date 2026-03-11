@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure, publicProcedure } from "../trpc";
+import { sendLicenseConfirmationEmail } from "../../../lib/email";
 import {
     createOrder as createCashfreeOrder,
     verifyPayment as verifyCashfreePayment,
@@ -192,12 +193,30 @@ export const paymentRouter = createTRPCRouter({
             // Create license if payment successful
             let license = null;
             if (paymentStatus.paymentStatus === "SUCCESS") {
-                license = await createLicense({
-                    assetId: order.assetId,
-                    buyerId: order.buyerId,
-                    orderId: order.id,
-                    licenseType: order.licenseType as "usage" | "source",
-                });
+                const existingLicense = await getLicenseByOrderId(order.id);
+                if (!existingLicense) {
+                    license = await createLicense({
+                        assetId: order.assetId,
+                        buyerId: order.buyerId,
+                        orderId: order.id,
+                        licenseType: order.licenseType as "usage" | "source",
+                    });
+
+                    // Send confirmation email
+                    if (order.buyer?.email) {
+                        try {
+                            await sendLicenseConfirmationEmail(
+                                order.buyer.email,
+                                license.licenseKey,
+                                order.asset?.name || "Your Asset"
+                            );
+                        } catch (e) {
+                            console.error("Failed to send email from verifyPayment router:", e);
+                        }
+                    }
+                } else {
+                    license = existingLicense;
+                }
             }
 
             return {

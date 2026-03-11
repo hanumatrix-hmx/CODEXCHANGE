@@ -1,6 +1,7 @@
 import { db } from "./index";
 import { orders, payments, licenses, assets } from "./schema";
 import { eq, desc, sql } from "drizzle-orm";
+import crypto from "crypto";
 
 /**
  * Create a new order record (intent to purchase)
@@ -104,6 +105,16 @@ export async function getOrderByCashfreeId(cashfreeOrderId: string) {
 }
 
 /**
+ * Generate a license key in the format CE-{4hex}-{4hex}-{4hex}-{4hex}
+ */
+function generateLicenseKey(): string {
+    const segments = Array.from({ length: 4 }, () =>
+        crypto.randomBytes(2).toString('hex').toUpperCase()
+    );
+    return `CE-${segments.join('-')}`;
+}
+
+/**
  * Create a license after successful payment
  */
 export async function createLicense(data: {
@@ -112,8 +123,8 @@ export async function createLicense(data: {
     orderId: string;
     licenseType: "usage" | "source";
 }) {
-    // Generate a unique license key
-    const licenseKey = `${data.licenseType.toUpperCase()}-${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
+    // Generate a unique license key in CE-{4hex}-{4hex}-{4hex}-{4hex} format
+    const licenseKey = generateLicenseKey();
 
     // Use a transaction to ensure both license creation and asset update happen atomically
     const result = await db.transaction(async (tx) => {

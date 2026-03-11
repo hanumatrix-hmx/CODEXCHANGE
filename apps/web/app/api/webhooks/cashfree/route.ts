@@ -7,6 +7,7 @@ import {
 } from "@codexchange/db/src/payment-queries";
 import { verifyWebhookSignature } from "@codexchange/payment";
 import type { WebhookPayload } from "@codexchange/payment";
+import { sendLicenseConfirmationEmail } from "../../../../lib/email";
 
 export async function POST(request: NextRequest) {
     // Read raw body FIRST — must happen before any JSON parsing
@@ -62,16 +63,36 @@ export async function POST(request: NextRequest) {
 
         // Create license if payment successful and not already created
         if (paymentStatus === "SUCCESS") {
+            console.log(`[Webhook] Payment SUCCESS for order ${dbOrder.id}. Checking existing license...`);
             const existingLicense = await getLicenseByOrderId(dbOrder.id);
 
             if (!existingLicense) {
-                await createLicense({
+                console.log(`[Webhook] No existing license found. Creating license...`);
+                const license = await createLicense({
                     assetId: dbOrder.assetId,
                     buyerId: dbOrder.buyerId,
                     orderId: dbOrder.id,
                     licenseType: dbOrder.licenseType as "usage" | "source",
                 });
 
+                // Send confirmation email
+                console.log(`[Webhook] License created: ${license.licenseKey}. Sending email to ${dbOrder.buyer?.email}...`);
+                if (dbOrder.buyer?.email) {
+                    try {
+                        const emailResult = await sendLicenseConfirmationEmail(
+                            dbOrder.buyer.email,
+                            license.licenseKey,
+                            dbOrder.asset?.name || "Your Asset"
+                        );
+                        console.log(`[Webhook] Email send result:`, emailResult);
+                    } catch (emailError) {
+                        console.error(`[Webhook] Exception thrown while calling sendLicenseConfirmationEmail:`, emailError);
+                    }
+                } else {
+                    console.warn(`[Webhook] No email found for buyer ${dbOrder.buyerId} on order ${dbOrder.id}`);
+                }
+            } else {
+                console.log(`[Webhook] License already exists for order ${dbOrder.id}. Skipping creation and email.`);
             }
         }
 
