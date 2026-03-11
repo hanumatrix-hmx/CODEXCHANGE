@@ -14,6 +14,7 @@
         "db:triggers": "tsx src/apply-triggers.ts",
         "db:promote": "tsx src/promote.ts",
         "make-admin": "tsx src/make-admin.ts",
+        "set-role": "tsx src/set-role.ts",
         "lint": "eslint \"src/**/*.ts\" --max-warnings 0"
     },
     "dependencies": {
