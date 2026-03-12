@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, protectedProcedure } from "../trpc";
-import { getUserLicenses } from "@codexchange/db/src/queries";
+import { getUserLicenses, getLicenseById } from "@codexchange/db/src/queries";
+import { generateSignedDownloadUrl } from "../../../lib/supabase-storage";
 
 export const licenseRouter = createTRPCRouter({
     /**
@@ -21,18 +22,156 @@ export const licenseRouter = createTRPCRouter({
         }),
 
     /**
-     * Generate download URL for a license.
-     * Auth: User must be authenticated to generate a download URL.
-     * Note: Full license ownership check will be added with S3 implementation.
+     * Get a single license by ID with full details.
+     * Auth: Only the license owner can view it.
+     */
+    getById: protectedProcedure
+        .input(z.object({ licenseId: z.string().uuid() }))
+        .query(async ({ input, ctx }) => {
+            const license = await getLicenseById(input.licenseId, ctx.user.id);
+
+            if (!license) {
+                throw new TRPCError({
+                    code: "NOT_FOUND",
+                    message: "License not found or you do not have access",
+                });
+            }
+
+            return license;
+        }),
+
+    /**
+     * Generate a secure download URL for the purchased asset files.
+     * Auth: User must own an active license.
      */
     generateDownloadUrl: protectedProcedure
-        .input(z.object({ licenseId: z.string() }))
-        .mutation(async () => {
-            // Placeholder for S3 integration
+        .input(z.object({ licenseId: z.string().uuid() }))
+        .mutation(async ({ input, ctx }) => {
+            // Validate license ownership and active status
+            const license = await getLicenseById(input.licenseId, ctx.user.id);
+
+            if (!license) {
+                throw new TRPCError({
+                    code: "NOT_FOUND",
+                    message: "License not found or you do not have access",
+                });
+            }
+
+            if (license.status !== "active") {
+                throw new TRPCError({
+                    code: "FORBIDDEN",
+                    message: `Cannot download files: license is ${license.status}`,
+                });
+            }
+
+            const storagePath = license.asset?.fileStoragePath;
+            if (!storagePath) {
+                throw new TRPCError({
+                    code: "NOT_FOUND",
+                    message: "No downloadable files found for this asset",
+                });
+            }
+
+            try {
+                const { url, expiresAt } = await generateSignedDownloadUrl(storagePath);
+                return { url, expiresAt };
+            } catch (error: any) {
+                console.error("Download URL generation failed:", error);
+                throw new TRPCError({
+                    code: "INTERNAL_SERVER_ERROR",
+                    message: error?.message || "Failed to generate download link. Please try again later.",
+                });
+            }
+        }),
+
+    /**
+     * Get license metadata for PDF generation (client-side).
+     * Returns all fields needed to construct the license agreement PDF.
+     */
+    getLicensePdfData: protectedProcedure
+        .input(z.object({ licenseId: z.string().uuid() }))
+        .query(async ({ input, ctx }) => {
+            const license = await getLicenseById(input.licenseId, ctx.user.id);
+
+            if (!license) {
+                throw new TRPCError({
+                    code: "NOT_FOUND",
+                    message: "License not found or you do not have access",
+                });
+            }
+
             return {
-                url: "#",
-                expiresAt: new Date(Date.now() + 72 * 60 * 60 * 1000), // 72 hours
-                message: "S3 integration pending",
+                licenseKey: license.licenseKey,
+                licenseType: license.licenseType,
+                status: license.status,
+                activatedAt: license.activatedAt,
+                expiresAt: license.expiresAt,
+                createdAt: license.createdAt,
+                assetName: license.asset?.name ?? "Unknown Asset",
+                assetDescription: license.asset?.description ?? "",
+                builderName: license.asset?.builder?.fullName ?? "Unknown Builder",
+                buyerName: ctx.user.name ?? "License Holder",
+                buyerEmail: ctx.user.email,
+                categoryName: license.asset?.category?.name ?? "",
+                orderId: license.orderId,
+                orderAmount: license.order?.amountTotal ?? "0.00",
+                orderCurrency: license.order?.currency ?? "INR",
+            };
+        }),
+
+    /**
+     * Deactivate a license (stub — will be implemented later).
+     */
+    deactivateLicense: protectedProcedure
+        .input(z.object({ licenseId: z.string().uuid() }))
+        .mutation(async ({ input, ctx }) => {
+            const license = await getLicenseById(input.licenseId, ctx.user.id);
+
+            if (!license) {
+                throw new TRPCError({
+                    code: "NOT_FOUND",
+                    message: "License not found or you do not have access",
+                });
+            }
+
+            // TODO: Implement actual deactivation logic
+            return {
+                success: true,
+                message: "License deactivation request received. This feature is coming soon.",
+            };
+        }),
+
+    /**
+     * Transfer a license to another user (stub — will be implemented later).
+     */
+    transferLicense: protectedProcedure
+        .input(
+            z.object({
+                licenseId: z.string().uuid(),
+                targetEmail: z.string().email(),
+            })
+        )
+        .mutation(async ({ input, ctx }) => {
+            const license = await getLicenseById(input.licenseId, ctx.user.id);
+
+            if (!license) {
+                throw new TRPCError({
+                    code: "NOT_FOUND",
+                    message: "License not found or you do not have access",
+                });
+            }
+
+            if (input.targetEmail === ctx.user.email) {
+                throw new TRPCError({
+                    code: "BAD_REQUEST",
+                    message: "Cannot transfer a license to yourself",
+                });
+            }
+
+            // TODO: Implement actual transfer logic (lookup target user, update license, send emails)
+            return {
+                success: true,
+                message: `License transfer request to ${input.targetEmail} received. This feature is coming soon.`,
             };
         }),
 });

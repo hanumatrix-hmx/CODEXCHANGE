@@ -16,7 +16,8 @@
         "NEXT_PUBLIC_APP_URL",
         "VERCEL_BRANCH_URL",
         "VERCEL_URL",
-        "RESEND_API_KEY"
+        "RESEND_API_KEY",
+        "SUPABASE_SERVICE_ROLE_KEY"
     ],
     "tasks": {
         "build": {
