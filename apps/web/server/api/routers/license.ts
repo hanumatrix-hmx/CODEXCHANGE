@@ -1,8 +1,10 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { createTRPCRouter, protectedProcedure } from "../trpc";
+import { createTRPCRouter, protectedProcedure, publicProcedure } from "../trpc";
 import { getUserLicenses, getLicenseById } from "@codexchange/db/src/queries";
 import { generateSignedDownloadUrl } from "../../../lib/supabase-storage";
+import { db, licenses } from "@codexchange/db";
+import { eq, and, or, isNull, gt } from "drizzle-orm";
 
 export const licenseRouter = createTRPCRouter({
     /**
@@ -19,6 +21,35 @@ export const licenseRouter = createTRPCRouter({
                 });
             }
             return await getUserLicenses(input.userId);
+        }),
+
+    /**
+     * Check if the user already owns a license for a specific asset.
+     * Public procedure so we can safely call it while loading auth or logged out.
+     */
+    checkOwnership: publicProcedure
+        .input(z.object({ assetId: z.string().uuid() }))
+        .query(async ({ input, ctx }) => {
+            if (!ctx.user) return { owned: false, licenseType: null };
+
+            const license = await db.query.licenses.findFirst({
+                where: and(
+                    eq(licenses.buyerId, ctx.user.id),
+                    eq(licenses.assetId, input.assetId),
+                    eq(licenses.status, "active"),
+                    or(
+                        isNull(licenses.expiresAt),
+                        gt(licenses.expiresAt, new Date())
+                    )
+                ),
+            });
+
+            if (!license) return { owned: false, licenseType: null };
+
+            return {
+                owned: true,
+                licenseType: license.licenseType as "usage" | "source",
+            };
         }),
 
     /**
