@@ -16,7 +16,7 @@ import {
 import { calculatePayoutComponents } from "@codexchange/payment";
 import { db } from "@codexchange/db";
 import { assets, orders, licenses } from "@codexchange/db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, or, isNull, gt } from "drizzle-orm";
 
 export const paymentRouter = createTRPCRouter({
     /**
@@ -60,19 +60,38 @@ export const paymentRouter = createTRPCRouter({
 
             const amountTotal = parseFloat(priceStr);
 
+            // Check for existing active licenses
+            const activeLicenses = await db.query.licenses.findMany({
+                where: and(
+                    eq(licenses.buyerId, ctx.user.id),
+                    eq(licenses.assetId, input.assetId),
+                    eq(licenses.status, "active"),
+                    or(
+                        isNull(licenses.expiresAt),
+                        gt(licenses.expiresAt, new Date())
+                    )
+                ),
+            });
+
+            if (activeLicenses.length > 0) {
+                const hasSource = activeLicenses.some(l => l.licenseType === "source");
+                const hasUsage = activeLicenses.some(l => l.licenseType === "usage");
+
+                if (hasSource) {
+                    throw new Error("You already own an active source license for this asset.");
+                }
+
+                if (hasUsage && input.licenseType === "usage") {
+                    throw new Error("You already own an active usage license for this asset. You can only upgrade to a source license.");
+                }
+            }
+
             // Handle free assets (0 amount) by bypassing Cashfree
             if (amountTotal === 0) {
-                // Check if user already owns any license for this asset
-                const existingLicense = await db.query.licenses.findFirst({
-                    where: and(
-                        eq(licenses.buyerId, ctx.user.id),
-                        eq(licenses.assetId, input.assetId)
-                    ),
-                });
-
-                if (existingLicense) {
-                    throw new Error("You already own a license for this asset. Free assets can only be claimed once.");
-                }
+                // If they already claimed it and it's active, it's blocked above. 
+                // If they had it but it's expired, we can let them claim it again.
+                // However, free assets are usually granted once. For now, let's just 
+                // allow renewal of expired free licenses to keep logic consistent.
 
                 // Create a completed order bypass
                 const orderId = `free_${Date.now()}_${Math.random().toString(36).substring(7)}`;

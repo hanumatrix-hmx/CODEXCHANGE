@@ -162,9 +162,10 @@ function BuyerDashboard({ userId }: { userId: string }) {
                         ) : licenses && licenses.length > 0 ? (
                             <div className="space-y-4">
                                 {licenses.map((license: any) => (
-                                    <div
+                                    <Link
                                         key={license.id}
-                                        className="flex items-center justify-between rounded-lg border border-gray-200 p-4 transition-colors hover:bg-gray-50"
+                                        href={`/licenses/${license.id}`}
+                                        className="flex items-center justify-between rounded-lg border border-gray-200 p-4 transition-colors hover:bg-gray-50 cursor-pointer"
                                     >
                                         <div className="flex items-center gap-4">
                                             <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-100">
@@ -199,11 +200,10 @@ function BuyerDashboard({ userId }: { userId: string }) {
                                                 {license.status}
                                             </Badge>
                                             <Button variant="outline" size="sm">
-                                                <Download className="mr-2 h-4 w-4" />
-                                                Download
+                                                View License →
                                             </Button>
                                         </div>
-                                    </div>
+                                    </Link>
                                 ))}
                             </div>
                         ) : (

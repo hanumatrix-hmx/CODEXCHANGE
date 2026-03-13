@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { Check } from "lucide-react";
+import { Check, ClipboardList } from "lucide-react";
 import { ScarcityIndicator } from "./scarcity-indicator";
 import { CheckoutModal, type LicenseOption } from "./checkout-modal";
+import { api } from "@/utils/trpc/client";
+import Link from "next/link";
 
 export interface PricingCardProps {
     licenseType: "usage" | "source";
@@ -68,6 +70,37 @@ export function PricingCard({
     const sourceLicense =
         licenseType === "source" ? thisLicenseOption : otherLicenseOption ?? null;
 
+    const { data: ownership } = api.license.checkOwnership.useQuery(
+        { assetId },
+        { 
+            retry: false,
+            refetchOnWindowFocus: false 
+        }
+    );
+
+    const isOwned = ownership?.owned;
+    const ownedType = ownership?.licenseType;
+
+    let buttonLabel = scarcity.remaining === 0 ? "Sold Out" : `Get ${config.title}`;
+    let isDisabled = scarcity.remaining === 0;
+    let showDashboardLink = false;
+
+    if (isOwned) {
+        if (ownedType === "source") {
+            buttonLabel = "Already Owned";
+            isDisabled = true;
+            showDashboardLink = true;
+        } else if (ownedType === "usage") {
+            if (licenseType === "usage") {
+                buttonLabel = "Already Owned";
+                isDisabled = true;
+                showDashboardLink = true;
+            } else {
+                buttonLabel = "Upgrade to Source";
+            }
+        }
+    }
+
     return (
         <>
             <div className="flex flex-col rounded-lg border border-gray-200 bg-white p-6 shadow-sm transition-shadow hover:shadow-md dark:border-white/10 dark:bg-white/3">
@@ -106,14 +139,26 @@ export function PricingCard({
                     ))}
                 </ul>
 
-                <button
-                    type="button"
-                    onClick={() => setShowCheckout(true)}
-                    disabled={scarcity.remaining === 0}
-                    className="mt-auto flex w-full items-center justify-center rounded-xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white shadow-md shadow-indigo-600/20 transition hover:bg-indigo-500 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none"
-                >
-                    {scarcity.remaining === 0 ? "Sold Out" : `Get ${config.title}`}
-                </button>
+                {showDashboardLink ? (
+                    <Link href="/dashboard" className="mt-auto">
+                        <button
+                            type="button"
+                            className="flex w-full items-center justify-center rounded-xl border border-indigo-600 bg-transparent px-4 py-3 text-sm font-semibold text-indigo-600 transition hover:bg-indigo-50 dark:hover:bg-indigo-600/10 focus:outline-none"
+                        >
+                            <ClipboardList className="mr-2 h-4 w-4" />
+                            View in Dashboard
+                        </button>
+                    </Link>
+                ) : (
+                    <button
+                        type="button"
+                        onClick={() => setShowCheckout(true)}
+                        disabled={isDisabled}
+                        className="mt-auto flex w-full items-center justify-center rounded-xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white shadow-md shadow-indigo-600/20 transition hover:bg-indigo-500 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none"
+                    >
+                        {buttonLabel}
+                    </button>
+                )}
             </div>
 
             <CheckoutModal

@@ -75,7 +75,7 @@ function PaymentVerifyContent() {
             if (res.url && res.url !== "#") {
                 window.open(res.url, "_blank");
             } else {
-                alert("Download link will be available soon. " + (res.message || ""));
+                alert("Download link will be available soon.");
             }
         } catch (error) {
             console.error("Download error", error);

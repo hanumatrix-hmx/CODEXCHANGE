@@ -415,3 +415,28 @@ export async function getMarketplaceStats() {
         totalCategories: categoriesResult?.count ?? 0,
     };
 }
+
+/**
+ * Get a single license by ID with full asset, order, and builder details.
+ * Validates that the requesting user owns the license.
+ */
+export async function getLicenseById(licenseId: string, buyerId: string) {
+    const license = await db.query.licenses.findFirst({
+        where: and(
+            eq(licenses.id, licenseId),
+            eq(licenses.buyerId, buyerId),
+        ),
+        with: {
+            asset: {
+                with: {
+                    builder: true,
+                    category: true,
+                },
+            },
+            order: true,
+        },
+    });
+
+    return license ?? null;
+}
+

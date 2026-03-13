@@ -508,7 +508,9 @@ export function CheckoutModal({
             }
 
         } catch (err: any) {
-            setPayError(err?.message || "Failed to initiate payment. Please try again.");
+            // TRPC errors come nested in the message
+            const errorMessage = err?.message || "Failed to initiate payment. Please try again.";
+            setPayError(errorMessage);
             setIsPayLoading(false);
         }
     }
