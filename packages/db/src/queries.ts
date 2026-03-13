@@ -1,5 +1,5 @@
 import { db } from "./index";
-import { assets, licenses, reviews as reviewsTable, categories, builderProfiles } from "./schema";
+import { assets, licenses, reviews as reviewsTable, categories, builderProfiles, payouts } from "./schema";
 import { eq, and, desc, sql, count, countDistinct } from "drizzle-orm";
 
 /**
@@ -113,7 +113,14 @@ export async function getBuilderAnalytics(builderId: string) {
         const totalRevenue = profile?.totalRevenue ? Number(profile.totalRevenue) * BUILDER_SHARE : 0;
         const avgRating = profile?.averageRating ? Number(profile.averageRating) : 0;
         const totalViews = builderAssets.reduce((sum, asset) => sum + (asset.viewsCount || 0), 0);
-        const pendingPayout = 0; // Keeping 0 to be calculated via payouts table in future
+        const payoutsResult = await db
+            .select({
+                pending: sql<string>`sum(case when status = 'pending' then net_amount else 0 end)`,
+            })
+            .from(payouts)
+            .where(eq(payouts.builderId, builderId));
+
+        const pendingPayout = payoutsResult[0]?.pending ? Number(payoutsResult[0].pending) : 0;
 
         return {
             totalAssets,

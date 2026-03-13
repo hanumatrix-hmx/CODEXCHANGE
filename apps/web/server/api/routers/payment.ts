@@ -13,6 +13,7 @@ import {
     getOrderByCashfreeId,
     getLicenseByOrderId,
 } from "@codexchange/db/src/payment-queries";
+import { calculatePayoutComponents } from "@codexchange/payment";
 import { db } from "@codexchange/db";
 import { assets, orders, licenses } from "@codexchange/db";
 import { eq, and } from "drizzle-orm";
@@ -107,10 +108,11 @@ export const paymentRouter = createTRPCRouter({
                 };
             }
 
-            const amountBase = amountTotal;
-            const amountPlatformFee = amountBase * 0.16;
-            const amountGst = amountPlatformFee * 0.18;
-            const amountTcs = amountBase * 0.01;
+            const payout = calculatePayoutComponents(amountTotal);
+            const amountBase = payout.grossPayout; // This is the gross payout before TDS
+            const amountPlatformFee = payout.platformFee;
+            const amountGst = payout.gst;
+            const amountTcs = payout.tcs;
 
             // Use the request's origin so Cashfree redirects back to the SAME deployment
             // the user is on. Hardcoding NEXT_PUBLIC_APP_URL breaks preview deployments

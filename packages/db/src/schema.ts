@@ -197,6 +197,8 @@ export const orders = pgTable("orders", {
     cashfreeOrderId: text("cashfree_order_id").unique(),
     paymentSessionId: text("payment_session_id"),
 
+    payoutId: uuid("payout_id").references(() => payouts.id),
+
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -278,8 +280,10 @@ export const payouts = pgTable("payouts", {
     currency: text("currency").default("INR").notNull(),
     status: text("status").notNull().default("pending"), // pending, scheduled, completed, failed
 
-    // Razorpay Route details
+    // Cashfree Route details
     transferId: text("transfer_id"),
+    cfTransferId: text("cf_transfer_id"),
+    transferStatus: text("transfer_status"),
 
     orderIds: jsonb("order_ids").$type<string[]>(), // The orders that make up this payout
 
@@ -397,6 +401,10 @@ export const ordersRelations = relations(orders, ({ one, many }) => ({
     builder: one(profiles, {
         fields: [orders.builderId],
         references: [profiles.id],
+    }),
+    payout: one(payouts, {
+        fields: [orders.payoutId],
+        references: [payouts.id],
     }),
     payments: many(payments),
 }));

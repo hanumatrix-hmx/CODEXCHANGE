@@ -15,9 +15,11 @@
         "db:promote": "tsx src/promote.ts",
         "make-admin": "tsx src/make-admin.ts",
         "set-role": "tsx src/set-role.ts",
+        "payout:trigger": "tsx src/trigger-payouts.ts",
         "lint": "eslint \"src/**/*.ts\" --max-warnings 0"
     },
     "dependencies": {
+        "@codexchange/payment": "workspace:*",
         "@supabase/supabase-js": "^2.39.7",
         "drizzle-orm": "0.29.5",
         "postgres": "^3.4.3",

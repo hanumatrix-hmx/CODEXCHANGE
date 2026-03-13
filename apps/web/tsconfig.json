@@ -10,6 +10,12 @@
         "paths": {
             "@/*": [
                 "./*"
+            ],
+            "@codexchange/payment": [
+                "../../packages/payment/src"
+            ],
+            "@codexchange/db": [
+                "../../packages/db/src"
             ]
         }
     },

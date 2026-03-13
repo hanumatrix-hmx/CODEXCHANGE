@@ -21,3 +21,4 @@ export const db = drizzle(client, { schema });
 export * from "./schema";
 export * from "./queries";
 export * from "./payment-queries";
+export * from "./payout-queries";
