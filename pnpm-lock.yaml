@@ -148,6 +148,9 @@ importers:
 
   packages/db:
     dependencies:
+      '@codexchange/payment':
+        specifier: workspace:*
+        version: link:../payment
       '@supabase/supabase-js':
         specifier: ^2.39.7
         version: 2.95.3

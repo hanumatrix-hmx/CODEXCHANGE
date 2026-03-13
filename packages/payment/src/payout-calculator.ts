@@ -30,9 +30,9 @@ export function calculatePayoutComponents(
     saleAmount: number, 
     platformFeePercent: number = DEFAULT_PLATFORM_FEE_PERCENT
 ): PayoutComponents {
-    const gst = saleAmount * GST_PERCENT;
     const tcs = saleAmount * TCS_PERCENT;
     const platformFee = saleAmount * platformFeePercent;
+    const gst = platformFee * GST_PERCENT;
     
     const grossPayout = saleAmount - gst - tcs - platformFee;
     
