@@ -127,6 +127,26 @@ export async function createLicense(data: {
     // Generate a unique license key in CE-{4hex}-{4hex}-{4hex}-{4hex} format
     const licenseKey = generateLicenseKey();
 
+    // Look up the asset to get its validity configuration
+    const [asset] = await db
+        .select({
+            usageLicenseValidityDays: assets.usageLicenseValidityDays,
+            sourceLicenseValidityDays: assets.sourceLicenseValidityDays,
+        })
+        .from(assets)
+        .where(eq(assets.id, data.assetId));
+
+    // Determine validity period based on license type
+    const validityDays =
+        data.licenseType === "usage"
+            ? asset?.usageLicenseValidityDays
+            : asset?.sourceLicenseValidityDays;
+
+    // null validityDays = perpetual (no expiry)
+    const expiresAt = validityDays
+        ? new Date(Date.now() + validityDays * 24 * 60 * 60 * 1000)
+        : null;
+
     // Use a transaction to ensure both license creation and asset update happen atomically
     const result = await db.transaction(async (tx) => {
         // Create the license
@@ -137,8 +157,7 @@ export async function createLicense(data: {
                 licenseKey,
                 status: "active",
                 activatedAt: new Date(),
-                // Set expiration based on license type (optional)
-                // expiresAt: licenseType === "usage" ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000) : null,
+                expiresAt,
             })
             .returning();
 

@@ -42,17 +42,53 @@ function calculateEarnings(price: number) {
     };
 }
 
-const MAX_FILE_SIZE_MB = 4;
+const MAX_IMAGE_SIZE_MB = 4;
+const MAX_FILE_SIZE_MB = 50;
+
+const VALIDITY_PRESETS = [
+    { label: "6 Months", days: 180 },
+    { label: "1 Year", days: 365 },
+    { label: "2 Years", days: 730 },
+    { label: "Perpetual", days: 0 },
+];
+
+function formatDaysAsMonths(days: number): string {
+    if (days <= 0) return "Perpetual (no expiry)";
+    const months = days / 30;
+    if (months < 1) return `${days} day${days !== 1 ? "s" : ""}`;
+    const rounded = Math.round(months * 10) / 10;
+    return `≈ ${rounded} month${rounded !== 1 ? "s" : ""}`;
+}
 
 export default function SubmitAssetForm({ categories, initialData }: { categories: any[], initialData?: any }) {
     const isEditing = !!initialData;
     const action = isEditing ? updateAsset : submitAsset;
-    const [state, formAction] = useActionState(action, initialState);
+    const [state, formAction, isPending] = useActionState(action, initialState);
 
     const [usageLicensePrice, setUsageLicensePrice] = useState<string>(initialData?.usageLicensePrice || "");
     const [sourceLicensePrice, setSourceLicensePrice] = useState<string>(initialData?.sourceLicensePrice || "");
     const [usageFeaturesText, setUsageFeaturesText] = useState<string>(initialData?.licenseFeatures?.usage?.join('\n') || "Deploy to production\nUnlimited end users\nTechnical support\nUpdates for 1 year");
     const [sourceFeaturesText, setSourceFeaturesText] = useState<string>(initialData?.licenseFeatures?.source?.join('\n') || "Full source code access\nModify and customize\nLifetime updates\nPriority support");
+
+    // License validity state
+    const [usageValidityDays, setUsageValidityDays] = useState<string>(initialData?.usageLicenseValidityDays?.toString() || "365");
+    const [sourceValidityDays, setSourceValidityDays] = useState<string>(initialData?.sourceLicenseValidityDays?.toString() || "0");
+    const [usageValidityMode, setUsageValidityMode] = useState<string>(() => {
+        const v = initialData?.usageLicenseValidityDays;
+        if (v === null || v === undefined || v === 0) return "0";
+        if (VALIDITY_PRESETS.some(p => p.days === v)) return String(v);
+        return "custom";
+    });
+    const [sourceValidityMode, setSourceValidityMode] = useState<string>(() => {
+        const v = initialData?.sourceLicenseValidityDays;
+        if (v === null || v === undefined || v === 0) return "0";
+        if (VALIDITY_PRESETS.some(p => p.days === v)) return String(v);
+        return "custom";
+    });
+
+    // File upload state
+    const [assetFile, setAssetFile] = useState<File | null>(null);
+    const existingFilePath = initialData?.fileStoragePath || null;
 
     const [galleryHasError, setGalleryHasError] = useState<boolean>(!isEditing);
     const [submitAttempted, setSubmitAttempted] = useState<boolean>(false);
@@ -139,6 +175,9 @@ export default function SubmitAssetForm({ categories, initialData }: { categorie
                             className={`${inputClasses} ${isEditing ? "bg-gray-100/50 dark:bg-white/5 cursor-not-allowed opacity-75" : ""}`}
                         />
                     </div>
+                    {state?.error?.slug && (
+                        <p className="mt-1 text-sm text-red-600">{state.error.slug}</p>
+                    )}
                 </div>
 
                 <div className="sm:col-span-1">
@@ -153,9 +192,9 @@ export default function SubmitAssetForm({ categories, initialData }: { categorie
                             defaultValue={initialData?.categoryId || ""}
                             className={inputClasses}
                         >
-                            <option value="">Select a category</option>
+                            <option value="" className="text-gray-900 dark:text-gray-100 dark:bg-gray-900">Select a category</option>
                             {categories.map((cat) => (
-                                <option key={cat.id} value={cat.id}>
+                                <option key={cat.id} value={cat.id} className="text-gray-900 dark:text-gray-100 dark:bg-gray-900">
                                     {cat.name}
                                 </option>
                             ))}
@@ -255,6 +294,52 @@ export default function SubmitAssetForm({ categories, initialData }: { categorie
                             placeholder="Deploy to production&#10;Unlimited end users..."
                         />
                     </div>
+
+                    {/* Usage License Validity */}
+                    <div className="mt-5 pt-5 border-t border-gray-200/60 dark:border-white/10">
+                        <label className={`block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center`}>
+                            License Validity
+                            <InfoTooltip title="⏳ Validity Period" text="How long the usage license remains active after purchase. Perpetual means it never expires." />
+                        </label>
+                        <select
+                            value={usageValidityMode}
+                            onChange={(e) => {
+                                const val = e.target.value;
+                                setUsageValidityMode(val);
+                                if (val !== "custom") {
+                                    setUsageValidityDays(val);
+                                } else {
+                                    setUsageValidityDays(usageValidityDays === "0" ? "90" : usageValidityDays);
+                                }
+                                handleFormChange();
+                            }}
+                            className={inputClasses}
+                        >
+                            {VALIDITY_PRESETS.map(p => (
+                                <option key={p.days} value={String(p.days)} className="text-gray-900 dark:text-gray-100 dark:bg-gray-900">{p.label}</option>
+                            ))}
+                            <option value="custom" className="text-gray-900 dark:text-gray-100 dark:bg-gray-900">Custom (enter days)</option>
+                        </select>
+                        {usageValidityMode === "custom" && (
+                            <div className="mt-3">
+                                <div className="flex items-center gap-3">
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        max="3650"
+                                        value={usageValidityDays}
+                                        onChange={(e) => { setUsageValidityDays(e.target.value); handleFormChange(); }}
+                                        placeholder="e.g. 90"
+                                        className={`${inputClasses} max-w-[140px]`}
+                                    />
+                                    <span className="text-sm text-gray-500 dark:text-gray-400">days</span>
+                                </div>
+                                {parseInt(usageValidityDays) > 0 && (
+                                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{formatDaysAsMonths(parseInt(usageValidityDays))}</p>
+                                )}
+                            </div>
+                        )}
+                    </div>
                 </div>
 
                 <div className="sm:col-span-1 border border-gray-100 dark:border-white/10 bg-gray-50/50 dark:bg-white/5 rounded-2xl p-6 backdrop-blur-sm shadow-sm ring-1 ring-black/5 dark:ring-white/5">
@@ -304,10 +389,58 @@ export default function SubmitAssetForm({ categories, initialData }: { categorie
                             placeholder="Full source code access&#10;Modify and customize..."
                         />
                     </div>
+
+                    {/* Source License Validity */}
+                    <div className="mt-5 pt-5 border-t border-gray-200/60 dark:border-white/10">
+                        <label className={`block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center`}>
+                            License Validity
+                            <InfoTooltip title="⏳ Validity Period" text="How long the source license remains active after purchase. Perpetual means it never expires." />
+                        </label>
+                        <select
+                            value={sourceValidityMode}
+                            onChange={(e) => {
+                                const val = e.target.value;
+                                setSourceValidityMode(val);
+                                if (val !== "custom") {
+                                    setSourceValidityDays(val);
+                                } else {
+                                    setSourceValidityDays(sourceValidityDays === "0" ? "90" : sourceValidityDays);
+                                }
+                                handleFormChange();
+                            }}
+                            className={inputClasses}
+                        >
+                            {VALIDITY_PRESETS.map(p => (
+                                <option key={p.days} value={String(p.days)} className="text-gray-900 dark:text-gray-100 dark:bg-gray-900">{p.label}</option>
+                            ))}
+                            <option value="custom" className="text-gray-900 dark:text-gray-100 dark:bg-gray-900">Custom (enter days)</option>
+                        </select>
+                        {sourceValidityMode === "custom" && (
+                            <div className="mt-3">
+                                <div className="flex items-center gap-3">
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        max="3650"
+                                        value={sourceValidityDays}
+                                        onChange={(e) => { setSourceValidityDays(e.target.value); handleFormChange(); }}
+                                        placeholder="e.g. 90"
+                                        className={`${inputClasses} max-w-[140px]`}
+                                    />
+                                    <span className="text-sm text-gray-500 dark:text-gray-400">days</span>
+                                </div>
+                                {parseInt(sourceValidityDays) > 0 && (
+                                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{formatDaysAsMonths(parseInt(sourceValidityDays))}</p>
+                                )}
+                            </div>
+                        )}
+                    </div>
                 </div>
 
-                {/* Hidden input to pass licenseFeatures as JSON string */}
+                {/* Hidden inputs for structured data */}
                 <input type="hidden" name="licenseFeatures" value={JSON.stringify({ usage: usageFeaturesText.split('\n').map(f => f.trim()).filter(f => f), source: sourceFeaturesText.split('\n').map(f => f.trim()).filter(f => f) })} />
+                <input type="hidden" name="usageLicenseValidityDays" value={usageValidityDays} />
+                <input type="hidden" name="sourceLicenseValidityDays" value={sourceValidityDays} />
 
                 <div className="sm:col-span-2">
                     <label htmlFor="maxLicenses" className={labelClasses}>
@@ -341,6 +474,62 @@ export default function SubmitAssetForm({ categories, initialData }: { categorie
                     />
                 </div>
 
+                {/* Asset File Upload */}
+                <div className="sm:col-span-2">
+                    <label className={`${labelClasses} mb-2`}>
+                        Asset File (ZIP)
+                        <InfoTooltip title="📦 Asset File" text="Upload a ZIP file containing your source code, templates, or deployable package. Max 100MB. This file will be delivered to buyers after purchase." />
+                    </label>
+                    <div className={`rounded-xl border border-dashed ${assetFile || existingFilePath ? 'border-green-300 dark:border-green-700 bg-green-50/50 dark:bg-green-900/10' : 'border-gray-300 dark:border-white/20 bg-white/50 dark:bg-white/5'} p-6 text-center transition-colors`}>
+                        {assetFile ? (
+                            <div className="flex items-center justify-center gap-3">
+                                <svg className="w-6 h-6 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                <div className="text-left">
+                                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{assetFile.name}</p>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">{(assetFile.size / (1024 * 1024)).toFixed(2)} MB</p>
+                                </div>
+                                <button type="button" onClick={() => setAssetFile(null)} className="ml-4 text-xs text-red-600 dark:text-red-400 hover:underline">Remove</button>
+                            </div>
+                        ) : existingFilePath ? (
+                            <div className="flex items-center justify-center gap-3">
+                                <svg className="w-6 h-6 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                <div className="text-left">
+                                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100">File uploaded</p>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate max-w-xs">{existingFilePath.split('/').pop()}</p>
+                                </div>
+                            </div>
+                        ) : (
+                            <div>
+                                <svg className="mx-auto w-10 h-10 text-gray-300 dark:text-gray-600 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
+                                <p className="text-sm text-gray-600 dark:text-gray-400">Drop your file here or click to browse</p>
+                            </div>
+                        )}
+                        <input
+                            type="file"
+                            name="assetFile"
+                            id="assetFile"
+                            accept=".zip,.rar,.7z,.tar,.gz,.tar.gz"
+                            className={`mt-3 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-gray-900 file:text-white dark:file:bg-white dark:file:text-gray-900 file:cursor-pointer hover:file:bg-gray-800 dark:hover:file:bg-gray-200 file:transition-colors ${assetFile || existingFilePath ? 'mt-3' : ''}`}
+                            onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                    if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+                                        alert(`File too large. Maximum size is ${MAX_FILE_SIZE_MB}MB.`);
+                                        e.target.value = '';
+                                        return;
+                                    }
+                                    setAssetFile(file);
+                                    handleFormChange();
+                                }
+                            }}
+                        />
+                        <p className="mt-2 text-xs text-gray-400 dark:text-gray-500">ZIP, RAR, 7Z, TAR, GZ — Max {MAX_FILE_SIZE_MB}MB</p>
+                    </div>
+                    {state?.error?.assetFile && (
+                        <p className="mt-1 text-sm text-red-600">{state.error.assetFile}</p>
+                    )}
+                </div>
+
                 {/* Unified Images */}
                 <div className="sm:col-span-2">
                     <label className={`${labelClasses} mb-2`}>
@@ -350,7 +539,7 @@ export default function SubmitAssetForm({ categories, initialData }: { categorie
                         initialImages={initialImages}
                         onErrorStateChange={setGalleryHasError}
                         onImagesChange={setImagesChanged}
-                        maxFileSizeMB={MAX_FILE_SIZE_MB}
+                        maxFileSizeMB={MAX_IMAGE_SIZE_MB}
                     />
                 </div>
 
@@ -404,10 +593,20 @@ export default function SubmitAssetForm({ categories, initialData }: { categorie
                 )}
                 <button
                     type="submit"
-                    disabled={hasImageErrors || isSaveDisabled}
+                    disabled={hasImageErrors || isSaveDisabled || isPending}
                     className="inline-flex justify-center rounded-xl bg-gray-900 dark:bg-white px-10 py-4 text-base font-semibold text-white dark:text-gray-900 shadow-sm transition hover:bg-gray-800 dark:hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900 dark:focus:ring-white focus:ring-offset-2 dark:focus:ring-offset-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                    {isEditing ? "Save Changes" : "Submit for Review"}
+                    {isPending ? (
+                        <div className="flex items-center">
+                            <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white dark:text-gray-900" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            {isEditing ? "Saving Changes..." : "Submitting..."}
+                        </div>
+                    ) : (
+                        isEditing ? "Save Changes" : "Submit for Review"
+                    )}
                 </button>
             </div>
         </form>

@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { eq, inArray, and, ilike } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import { uploadAssetFile, deleteAssetFile } from "@/lib/supabase-storage";
 
 const assetSchema = z.object({
     name: z.string().min(3, "Name must be at least 3 characters"),
@@ -26,6 +27,16 @@ const assetSchema = z.object({
             return z.NEVER;
         }
     }).optional(),
+    usageLicenseValidityDays: z.string().optional().transform(val => {
+        if (!val || val === "" || val === "0") return null; // 0 = perpetual
+        const parsed = parseInt(val, 10);
+        return isNaN(parsed) || parsed <= 0 ? null : parsed;
+    }),
+    sourceLicenseValidityDays: z.string().optional().transform(val => {
+        if (!val || val === "" || val === "0") return null; // 0 = perpetual
+        const parsed = parseInt(val, 10);
+        return isNaN(parsed) || parsed <= 0 ? null : parsed;
+    }),
 });
 
 export type FormState = {
@@ -39,6 +50,7 @@ export type FormState = {
         maxLicenses?: string[];
         demoUrl?: string[];
         githubUrl?: string[];
+        assetFile?: string[];
         _form?: string[];
     };
     message?: string | null;
@@ -64,7 +76,12 @@ export async function submitAsset(_prevState: any, formData: FormData): Promise<
         demoUrl: formData.get("demoUrl") as string,
         githubUrl: formData.get("githubUrl") as string,
         licenseFeatures: formData.get("licenseFeatures") as string,
+        usageLicenseValidityDays: formData.get("usageLicenseValidityDays") as string,
+        sourceLicenseValidityDays: formData.get("sourceLicenseValidityDays") as string,
     };
+
+    // Handle asset file upload
+    const assetFile = formData.get("assetFile") as File | null;
 
     const tagsStr = formData.get("tags") as string;
     let tagNames: string[] = [];
@@ -79,6 +96,7 @@ export async function submitAsset(_prevState: any, formData: FormData): Promise<
     const validated = assetSchema.safeParse(rawData);
 
     if (!validated.success) {
+        console.error("Submit Asset Validation failed:", validated.error.flatten().fieldErrors);
         return {
             error: validated.error.flatten().fieldErrors,
         };
@@ -103,6 +121,16 @@ export async function submitAsset(_prevState: any, formData: FormData): Promise<
     const uploadedImageUrls: { url: string, sortOrder: number }[] = [];
 
     try {
+        // Upload asset file to Supabase Storage
+        let fileStoragePath: string | null = null;
+        if (assetFile && assetFile.size > 0) {
+            // Looser sanitization: only remove characters that break paths or control chars.
+            // Spaces and most other characters are typically fine in Supabase/S3.
+            const sanitizedName = assetFile.name.replace(/[<>:"/\\|?*\x00-\x1F]/g, "_").trim();
+            const storagePath = `${user.id}/${rest.slug}/${Date.now()}-${sanitizedName}`;
+            fileStoragePath = await uploadAssetFile(assetFile, storagePath);
+        }
+
         // Upload images based on order
         for (let i = 0; i < imageOrder.length; i++) {
             const item = imageOrder[i];
@@ -135,6 +163,7 @@ export async function submitAsset(_prevState: any, formData: FormData): Promise<
             ...rest,
             builderId: user.id,
             status: "pending_review",
+            fileStoragePath,
             // Use the cover image (sortOrder 0) as thumbnail if available, otherwise first gallery image
             thumbnailUrl: uploadedImageUrls.length > 0 ? uploadedImageUrls.sort((a, b) => a.sortOrder - b.sortOrder)[0].url : null,
         }).returning({ id: assets.id });
@@ -221,7 +250,12 @@ export async function updateAsset(_prevState: any, formData: FormData): Promise<
         demoUrl: formData.get("demoUrl") as string,
         githubUrl: formData.get("githubUrl") as string,
         licenseFeatures: formData.get("licenseFeatures") as string,
+        usageLicenseValidityDays: formData.get("usageLicenseValidityDays") as string,
+        sourceLicenseValidityDays: formData.get("sourceLicenseValidityDays") as string,
     };
+
+    // Handle asset file upload
+    const assetFile = formData.get("assetFile") as File | null;
 
     const tagsStr = formData.get("tags") as string;
     let tagNames: string[] = [];
@@ -236,6 +270,7 @@ export async function updateAsset(_prevState: any, formData: FormData): Promise<
     const validated = assetSchema.safeParse(rawData);
 
     if (!validated.success) {
+        console.error("Update Asset Validation failed:", validated.error.flatten().fieldErrors);
         return {
             error: validated.error.flatten().fieldErrors,
         };
@@ -260,6 +295,19 @@ export async function updateAsset(_prevState: any, formData: FormData): Promise<
     const newImagesToInsert: { url: string, sortOrder: number }[] = [];
 
     try {
+        // Upload new asset file if provided, replacing old one
+        let updatedFileStoragePath = existingAsset.fileStoragePath;
+        if (assetFile && assetFile.size > 0) {
+            // Delete old file if it exists
+            if (existingAsset.fileStoragePath) {
+                await deleteAssetFile(existingAsset.fileStoragePath);
+            }
+            // Looser sanitization: only remove characters that break paths or control chars.
+            const sanitizedName = assetFile.name.replace(/[<>:"/\\|?*\x00-\x1F]/g, "_").trim();
+            const storagePath = `${user.id}/${existingAsset.slug}/${Date.now()}-${sanitizedName}`;
+            updatedFileStoragePath = await uploadAssetFile(assetFile, storagePath);
+        }
+
         const existingUrlsToKeep = imageOrder.filter(i => i.type === 'existing' && i.url).map(i => i.url as string);
 
         // Find DB records to delete
@@ -310,6 +358,7 @@ export async function updateAsset(_prevState: any, formData: FormData): Promise<
         await db.update(assets).set({
             ...rest,
             thumbnailUrl: updatedThumbnailUrl,
+            fileStoragePath: updatedFileStoragePath,
             updatedAt: new Date(),
         }).where(eq(assets.id, assetId));
 

@@ -91,9 +91,13 @@ export const assets = pgTable("assets", {
     // License features
     licenseFeatures: jsonb("license_features").$type<{ usage: string[]; source: string[] }>(),
 
+    // License validity (days). null = perpetual / no expiry.
+    usageLicenseValidityDays: integer("usage_license_validity_days"),
+    sourceLicenseValidityDays: integer("source_license_validity_days"),
+
     // Storage
     thumbnailUrl: text("thumbnail_url"),
-    fileStoragePath: text("file_storage_path"), // S3 path
+    fileStoragePath: text("file_storage_path"), // Supabase Storage path
 
     // Metadata
     avgRating: decimal("avg_rating", { precision: 3, scale: 2 }).default("0"),
